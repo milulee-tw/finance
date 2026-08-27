@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>米鹿私藏 · 投資效益分析 v4</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'PingFang TC', sans-serif; background: #0d1117; color: #e2e8f0; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #1a1225 0%, #1c1a2e 100%); border-bottom: 1px solid #2d2d48; padding: 24px 32px; display: flex; align-items: flex-start; justify-content: space-between; gap:20px; }
+  .header-left h1 { font-size: 1.5rem; font-weight: 700; color: #c084fc; letter-spacing: 0.02em; }
+  .header-left p { font-size: 0.82rem; color: #94a3b8; margin-top: 5px; }
+  .badge-v3 { display:inline-block; font-size:0.68rem; padding:2px 7px; border-radius:4px; background:#2a1a3a; color:#c084fc; margin-left:8px; vertical-align:middle; letter-spacing:0.06em; }
+  .verdict { background: #1a2e1a; border: 1px solid #2d5a2d; border-radius: 10px; padding: 12px 18px; text-align: right; flex-shrink:0; }
+  .verdict .v-label { font-size: 0.72rem; color: #86efac; text-transform: uppercase; letter-spacing: 0.05em; }
+  .verdict .v-value { font-size: 1.1rem; font-weight: 700; color: #4ade80; margin-top: 2px; }
+  .verdict .v-sub { font-size:0.72rem; color:#86efac; margin-top:4px; }
+  .header-date { font-size:0.72rem; color:#475569; margin-top:6px; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+
+  /* 分頁籤 */
+  .tabbar { max-width:1400px; margin:0 auto; padding: 0 32px; display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid #2d3748; }
+  .tab { padding: 11px 16px; font-size:0.84rem; color:#94a3b8; cursor:pointer; border:none; background:none;
+         border-bottom:2px solid transparent; font-family:inherit; white-space:nowrap; transition:color .15s; }
+  .tab:hover { color:#cbd5e1; }
+  .tab.active { color:#c084fc; border-bottom-color:#c084fc; font-weight:600; }
+  .tab .tnew { font-size:0.62rem; background:#2a1a3a; color:#c084fc; border-radius:3px; padding:1px 4px; margin-left:5px; vertical-align:middle; }
+  .panel { display:none; } .panel.active { display:block; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
+  .kpi-grid.four { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 1200px) { .kpi-grid, .kpi-grid.four { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 760px) { .kpi-grid, .kpi-grid.four { grid-template-columns: repeat(2, 1fr); }
+    .chart-row.two, .chart-row.three-two, .chart-row.two-one { grid-template-columns: 1fr !important; }
+    .insights { grid-template-columns: 1fr !important; } }
+  .kpi { background: #161b27; border: 1px solid #2d3748; border-radius: 10px; padding: 16px; }
+  .kpi .label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .kpi .value { font-size: 1.32rem; font-weight: 700; }
+  .kpi .delta { font-size: 0.74rem; margin-top: 4px; color: #94a3b8; line-height:1.5; }
+  .kpi.alert-red { border-color:#7f1d1d; background:#1f1416; }
+  .kpi.alert-green { border-color:#166534; background:#141f18; }
+  .kpi.alert-amber { border-color:#78500e; background:#1f1b14; }
+  .green { color: #4ade80; } .red { color: #f87171; } .purple { color: #c084fc; } .blue { color: #60a5fa; } .yellow { color: #fbbf24; }
+  .muted { color:#64748b; }
+
+  .section-title { font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; margin-top: 28px; border-left: 3px solid #c084fc; padding-left: 10px; }
+
+  .chart-row { display: grid; gap: 18px; margin-bottom: 18px; }
+  .chart-row.two { grid-template-columns: 1fr 1fr; }
+  .chart-row.three-two { grid-template-columns: 3fr 2fr; }
+  .chart-row.two-one { grid-template-columns: 2fr 1fr; }
+  .card { background: #161b27; border: 1px solid #2d3748; border-radius: 12px; padding: 22px; }
+  .card h3 { font-size: 0.88rem; font-weight: 600; color: #cbd5e1; margin-bottom: 14px; }
+  .chart-wrap { position: relative; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  th { padding: 8px 10px; text-align: left; color: #64748b; font-weight: 500; border-bottom: 1px solid #2d3748; font-size: 0.72rem; text-transform: uppercase; }
+  td { padding: 9px 10px; border-bottom: 1px solid #1e2533; }
+  tr:last-child td { border-bottom: none; }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .pos { color: #4ade80; } .neg { color: #f87171; }
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { flex: 1; height: 6px; background: #1e2533; border-radius: 3px; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .table-scroll { overflow-x:auto; max-height:520px; overflow-y:auto; }
+  .tier-badge { font-size:0.66rem; padding:1px 6px; border-radius:3px; white-space:nowrap; }
+  .tier-exact { background:#14261f; color:#4ade80; border:1px solid #1e4634; }
+  .tier-est { background:#2a2114; color:#fbbf24; border:1px solid #4a3a14; }
+
+  .insights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 24px; }
+  .insight { background: #161b27; border: 1px solid #2d3748; border-radius: 10px; padding: 18px; }
+  .insight.warn { border-color:#7f1d1d; background:#1c1517; }
+  .insight.good { border-color:#166534; background:#141f18; }
+  .insight .i-icon { font-size: 1.4rem; margin-bottom: 8px; }
+  .insight .i-title { font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+  .insight .i-body { font-size: 0.8rem; color: #94a3b8; line-height: 1.6; }
+  .insight .i-body strong { color: #e2e8f0; }
+  .note { font-size: 0.73rem; color: #475569; margin-top: 8px; font-style: italic; line-height:1.6; }
+  .alert-banner { background:#2a1c1c; border:1px solid #5a2d2d; border-radius:10px; padding:14px 18px; font-size:0.84rem; color:#fca5a5; line-height:1.65; margin-bottom:20px; }
+  .alert-banner strong { color:#fecaca; }
+  .dq-banner { background:#1f1b14; border:1px solid #78500e; border-radius:10px; padding:12px 16px; font-size:0.78rem; color:#fcd34d; line-height:1.65; margin-top:20px; }
+  .info-banner { background:#141d2a; border:1px solid #1e3a5a; border-radius:10px; padding:12px 16px; font-size:0.79rem; color:#93c5fd; line-height:1.7; margin-bottom:18px; }
+  .info-banner strong { color:#dbeafe; }
+
+  .phase-badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+  .phase-start { background: #1c2a3a; color: #60a5fa; }
+  .phase-scale { background: #2a1c1c; color: #f87171; }
+  .phase-profit { background: #1a2e1a; color: #4ade80; }
+  .footer { max-width:1400px; margin:0 auto; padding: 8px 32px 40px; font-size:0.74rem; color:#475569; line-height:1.8; }
+  .footer strong { color:#64748b; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>🛍️ MiluCollection 米鹿私藏<span class="badge-v3">V4</span></h1>
+    <p>蝦皮小店投資效益分析 · 現金流 × 訂單 × 商品獲利</p>
+    <div class="header-date">資料更新：2026/07/21 ｜ AndroMoney 至 2026/07/20 ｜ 蝦皮月報表 2023/06–2026/06（37 個月齊備）｜ 淘寶進貨 2023/08–2026/06 ｜ 成本表 2021/12–2026/07</div>
+  </div>
+  <div class="verdict">
+    <div class="v-label">整體評估</div>
+    <div class="v-value">✅ 投資有效益</div>
+    <div class="v-sub" id="verdictSub"></div>
+  </div>
+</div>
+
+<div class="tabbar" id="tabbar">
+  <button class="tab active" data-p="p1">💰 現金流總覽</button>
+  <button class="tab" data-p="p2">🔗 三帳對帳<span class="tnew">NEW</span></button>
+  <button class="tab" data-p="p3">🧾 蝦皮費用透視<span class="tnew">NEW</span></button>
+  <button class="tab" data-p="p4">📦 商品獲利與滯銷<span class="tnew">NEW</span></button>
+  <button class="tab" data-p="p5">👥 客群與衰退診斷<span class="tnew">NEW</span></button>
+</div>
+
+<div class="container">
+
+<!-- ==================== P1 現金流總覽（沿用 v3） ==================== -->
+<div class="panel active" id="p1">
+
+  <div class="alert-banner" id="yoyAlert"></div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">累積總收入</div>
+      <div class="value green" id="k-inc">--</div>
+      <div class="delta">蝦皮收款累積</div>
+    </div>
+    <div class="kpi">
+      <div class="label">累積總支出</div>
+      <div class="value red" id="k-exp">--</div>
+      <div class="delta">進貨＋運費＋廣告等</div>
+    </div>
+    <div class="kpi">
+      <div class="label">累積淨利</div>
+      <div class="value purple" id="k-net">--</div>
+      <div class="delta" id="k-net-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">2025 淨利率</div>
+      <div class="value yellow" id="k-m25">--</div>
+      <div class="delta">近年最佳</div>
+    </div>
+    <div class="kpi">
+      <div class="label">月均淨利（2025）</div>
+      <div class="value blue" id="k-avg25">--</div>
+      <div class="delta">逐年成長</div>
+    </div>
+    <div class="kpi" id="k-risk-card">
+      <div class="label">庫存風險指標</div>
+      <div class="value" id="k-risk">--</div>
+      <div class="delta" id="k-risk-sub">--</div>
+    </div>
+  </div>
+
+  <div class="section-title">年度損益趨勢</div>
+  <div class="chart-row three-two">
+    <div class="card">
+      <h3>年度收入 vs 支出 vs 淨利</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="annualChart"></canvas></div>
+      <p class="note">* 2021 為試水期（僅 12 月），2026 截至 7/20</p>
+    </div>
+    <div class="card">
+      <h3>年度損益明細</h3>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>年度</th><th>階段</th><th class="amt">收入</th><th class="amt">支出</th><th class="amt">淨利</th></tr></thead>
+        <tbody id="annualTable"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">月度現金流</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>每月收入 / 支出 / 結餘（2022–2026）</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="monthlyChart"></canvas></div>
+      <p class="note">* 結餘折線：月收入 − 月支出，正值代表當月獲利</p>
+    </div>
+  </div>
+  <div class="chart-row two">
+    <div class="card">
+      <h3>月淨利走勢 + 3月均線</h3>
+      <div class="chart-wrap" style="height:220px"><canvas id="surplusChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>月淨利率走勢（%）</h3>
+      <div class="chart-wrap" style="height:220px"><canvas id="marginChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">單量與客單價</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>每月訂單筆數 + 平均客單價（2024/01 起）</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="orderChart"></canvas></div>
+      <p class="note">* <strong>訂單量為 proxy</strong>：以「每月收入入帳筆數」估算，一筆入帳 ≈ 一筆訂單，非精確訂單數（合併撥款或分批入帳會失真）<br>
+      * 客單價 = 當月收入 ÷ 當月入帳筆數（右軸）<br>
+      * <strong>v4 新增</strong>：真實訂單數與客單價請見「👥 客群與衰退診斷」分頁（來源為蝦皮月報表）</p>
+    </div>
+  </div>
+
+  <div class="section-title">同月 YoY 比較（警訊追蹤）</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>2024 / 2025 / 2026 同月收入並列</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="yoyChart"></canvas></div>
+      <p class="note">* 2026 該月收入低於 2025 同月時，長條改以紅色系標示<br>
+      * 2026/7 為部分月份（記帳至 7/20），不納入 YoY 增減判定</p>
+    </div>
+  </div>
+
+  <div class="section-title">進貨通路分析</div>
+  <div class="chart-row two">
+    <div class="card">
+      <h3>通路累計佔比</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="chanDonut"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>逐年通路進貨金額</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="chanStack"></canvas></div>
+    </div>
+  </div>
+  <p class="note" style="margin:-6px 0 18px">* 資料為專案內「子分類 = 進貨」的支出列，依「商家(公司)」欄分組；未填商家歸入「其他」</p>
+
+  <div class="section-title">庫存風險指標</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>滾動 12 個月「進貨金額 ÷ 銷貨收入」比率</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="riskChart"></canvas></div>
+      <p class="note">* 紅色警戒線＝2023 年度比率（<span id="rw"></span>），該年大量進貨滯銷造成全年虧損<br>
+      * 綠色健康線＝2025 年度比率（<span id="ro"></span>），該年淨利率最佳<br>
+      * 比率越高代表資金越多壓在庫存上；持續高於警戒線需立即減緩進貨節奏</p>
+    </div>
+  </div>
+
+  <div class="section-title">支出結構分析</div>
+  <div class="chart-row two-one">
+    <div class="card">
+      <h3>支出子分類明細（TWD 累積）</h3>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>項目</th><th class="amt">金額</th><th>佔支出比</th></tr></thead>
+        <tbody id="costTable"></tbody>
+      </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>支出組成</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="costPie"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">關鍵洞察</div>
+  <div class="insights" id="insights"></div>
+
+  <div class="dq-banner" id="dqBanner"></div>
+</div>
+
+<!-- ==================== P2 三帳對帳 ==================== -->
+<div class="panel" id="p2">
+  <div class="info-banner">
+    🔗 <strong>這頁在做什麼</strong>：把三本獨立的帳擺在一起交叉驗證 ——
+    <strong>AndroMoney</strong>（實際入帳／付款現金流）、<strong>蝦皮月報表</strong>（訂單成交金額）、<strong>淘寶紀錄</strong>（進貨下單金額）。
+    三者口徑天生不同（撥款時間差、含不含運費、下單≠付款月），差異本身不是錯誤，重點是找出<strong>差異過大且無法解釋</strong>的月份。
+  </div>
+
+  <div class="kpi-grid four">
+    <div class="kpi">
+      <div class="label">蝦皮營收（商品總價）</div>
+      <div class="value green" id="r-shopee">--</div>
+      <div class="delta" id="r-shopee-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">AndroMoney 同期收入</div>
+      <div class="value blue" id="r-am">--</div>
+      <div class="delta">2023/06–2026/06 記帳收入</div>
+    </div>
+    <div class="kpi" id="r-cov-card">
+      <div class="label">營收涵蓋率</div>
+      <div class="value yellow" id="r-cov">--</div>
+      <div class="delta" id="r-cov-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">蝦皮費用 vs 記帳「蝦皮分成」</div>
+      <div class="value purple" id="r-feechk">--</div>
+      <div class="delta" id="r-feechk-sub">--</div>
+    </div>
+  </div>
+
+  <div class="section-title">收入面對帳：AndroMoney vs 蝦皮營收</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>月度收入對帳（2023/06 – 2026/06）</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="reconIncChart"></canvas></div>
+      <p class="note">* 蝦皮營收＝有效訂單「商品總價」（不含運費、未扣平台費）；AndroMoney 收入＝實際入帳金額<br>
+      * 蝦皮通常高於 AndroMoney，因為平台費在記帳中被單獨列為「蝦皮分成」支出<br>
+      * 2024/06、2024/07 月報表已於 2026-07-21 補齊，全期 37 個月無缺口</p>
+    </div>
+  </div>
+
+  <div class="section-title">支出面對帳：AndroMoney vs 淘寶 Milu 進貨</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>月度進貨對帳（2023/06 – 2026/06）</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="reconExpChart"></canvas></div>
+      <p class="note">* 淘寶僅計「Milu進貨費用」，已排除 Milu自用／楓雅／楓惠／阿波（依 D-003）<br>
+      * AndroMoney 支出含全部支出類別（進貨＋運費＋廣告＋蝦皮分成…），故必然高於淘寶單一通路<br>
+      * <strong>2026/05 淘寶為 0</strong>：該月確實無進貨（Milu 已確認），非資料缺漏</p>
+    </div>
+  </div>
+
+  <div class="section-title">差異明細（收入差異 &gt; 10% 的月份）</div>
+  <div class="chart-row">
+    <div class="card">
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>月份</th><th class="amt">AndroMoney 收入</th><th class="amt">蝦皮營收</th><th class="amt">差異</th><th class="amt">差異%</th><th>可能原因</th></tr></thead>
+        <tbody id="reconTable"></tbody>
+      </table>
+      </div>
+      <p class="note">* 差異% =（蝦皮營收 − AndroMoney 收入）÷ AndroMoney 收入</p>
+    </div>
+  </div>
+
+  <div class="insights" id="reconInsights"></div>
+</div>
+
+<!-- ==================== P3 蝦皮費用透視 ==================== -->
+<div class="panel" id="p3">
+  <div class="alert-banner" id="feeAlert"></div>
+
+  <div class="kpi-grid four">
+    <div class="kpi">
+      <div class="label">全期蝦皮費用</div>
+      <div class="value red" id="f-tot">--</div>
+      <div class="delta" id="f-tot-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">全期平均費用率</div>
+      <div class="value yellow" id="f-rate">--</div>
+      <div class="delta">三項費用 ÷ 商品總價</div>
+    </div>
+    <div class="kpi alert-red">
+      <div class="label">2026 H1 費用率</div>
+      <div class="value red" id="f-rate26">--</div>
+      <div class="delta" id="f-rate26-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">全期實收金額</div>
+      <div class="value green" id="f-net">--</div>
+      <div class="delta">商品總價 − 三項費用</div>
+    </div>
+  </div>
+
+  <div class="section-title">費用率年趨勢（核心洞察）</div>
+  <div class="chart-row three-two">
+    <div class="card">
+      <h3>年度費用率：三年上升逾 6 個百分點</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="feeRateChart"></canvas></div>
+      <p class="note">* 2023 為部分年度（6–12 月）、2026 為上半年（1–6 月）</p>
+    </div>
+    <div class="card">
+      <h3>年度費用明細</h3>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>年度</th><th class="amt">營收</th><th class="amt">費用</th><th class="amt">費用率</th><th class="amt">每 100 元實拿</th></tr></thead>
+        <tbody id="feeAnnualTable"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">費用組成：哪一項在漲</div>
+  <div class="chart-row two">
+    <div class="card">
+      <h3>年度費用組成（堆疊）</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="feeStackChart"></canvas></div>
+      <p class="note">* <strong>活動服務費</strong>成長最快 —— 參加平台活動（免運／折扣活動）的代價</p>
+    </div>
+    <div class="card">
+      <h3>三項費用「佔營收比」逐年變化</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="feeCompChart"></canvas></div>
+      <p class="note">* 拆開看才知道漲的是哪一項，而不是整體被動上升</p>
+    </div>
+  </div>
+
+  <div class="section-title">每月實收率</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>月度實收率（實收 ÷ 商品總價）</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="netRateChart"></canvas></div>
+      <p class="note">* 實收 = 商品總價 −（成交手續費＋活動服務費＋金流服務費）<br>
+      * 虛線為全期平均實收率；折線持續下滑代表平台抽成侵蝕毛利</p>
+    </div>
+  </div>
+
+  <div class="insights" id="feeInsights"></div>
+</div>
+
+<!-- ==================== P4 商品獲利與滯銷 ==================== -->
+<div class="panel" id="p4">
+  <div class="info-banner" id="coverBanner"></div>
+
+  <div class="kpi-grid four">
+    <div class="kpi">
+      <div class="label">全期商品銷售額</div>
+      <div class="value green" id="p-rev">--</div>
+      <div class="delta" id="p-rev-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">估算商品毛利</div>
+      <div class="value purple" id="p-gp">--</div>
+      <div class="delta" id="p-gp-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">最大單品貢獻</div>
+      <div class="value yellow" id="p-top">--</div>
+      <div class="delta" id="p-top-sub">--</div>
+    </div>
+    <div class="kpi alert-amber">
+      <div class="label">滯銷 SKU（上架但零銷售）</div>
+      <div class="value yellow" id="p-dead">--</div>
+      <div class="delta" id="p-dead-sub">--</div>
+    </div>
+  </div>
+
+  <div class="section-title">TOP 20 銷售商品</div>
+  <div class="chart-row">
+    <div class="card">
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>#</th><th>商品</th><th class="amt">銷售額</th><th>佔比</th><th class="amt">件數</th><th class="amt">毛利</th><th class="amt">毛利率</th><th>對應</th></tr></thead>
+        <tbody id="topTable"></tbody>
+      </table>
+      </div>
+      <p class="note">* <span class="tier-badge tier-exact">T1/T2 精算</span> = 該商品逾半銷售額能對上成本表 SKU，用實際單件淨利計算<br>
+      * <span class="tier-badge tier-est">T3 估算</span> = 對不上成本表，用該類別的成本表毛利率中位數推估，<strong>僅供相對比較，不可當精確數字</strong><br>
+      * ⚠️ <strong>「件數」欄在部分商品會虛胖</strong>：像「口袋精靈」這類<strong>客製／報價連結</strong>單價設為 $1，買家用「買 N 件」來湊金額，因此數量欄記的是金額而非實際件數。
+      全檔有 ${S.unit1Rows.toLocaleString()} 列屬此類（占 ${S.qtyUnit1.toLocaleString()} 件、$${fmt(S.amtUnit1)}）。<strong>銷售額與毛利不受影響，只有件數欄需要這樣讀</strong></p>
+    </div>
+  </div>
+
+  <div class="section-title">類別營收與毛利貢獻</div>
+  <div class="chart-row two">
+    <div class="card">
+      <h3>類別營收占比</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="catPie"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>類別毛利貢獻（含毛利率）</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="catGpChart"></canvas></div>
+      <p class="note">* 標籤紙營收排第二，但毛利率僅約 25%，是「走量不賺錢」的品類</p>
+    </div>
+  </div>
+
+  <div class="section-title">滯銷清單：上架中但全期零銷售的 SKU</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3 id="deadTitle">滯銷 SKU</h3>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>貨號</th><th>品項</th><th>類別</th><th class="amt">單件成本</th><th class="amt">售價</th><th class="amt">毛利率</th></tr></thead>
+        <tbody id="deadTable"></tbody>
+      </table>
+      </div>
+      <p class="note">* 判定：成本表「上架 = V」，但全期銷售明細中 <strong>T1 貨號或 T2 名稱都對不到任何一筆銷售</strong><br>
+      * ⚠️ <strong>可能高估</strong>：T3 未對應占銷售額 86%，這些 SKU 有可能其實有賣，只是報表沒帶貨號。此清單應視為<strong>優先盤點名單</strong>而非確定的呆料<br>
+      * ⚠️ <strong>無法計算「可釋放資金」</strong>：成本表沒有「庫存數量」欄位，只有單件成本，因此無法推算壓在這些 SKU 上的總金額。若要這個數字，需補上庫存盤點量</p>
+    </div>
+  </div>
+
+  <div class="insights" id="prodInsights"></div>
+</div>
+
+<!-- ==================== P5 客群與衰退診斷 ==================== -->
+<div class="panel" id="p5">
+  <div class="alert-banner" id="declineAlert"></div>
+
+  <div class="kpi-grid four">
+    <div class="kpi">
+      <div class="label">全期有效訂單</div>
+      <div class="value blue" id="c-orders">--</div>
+      <div class="delta" id="c-orders-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">全期平均客單價</div>
+      <div class="value green" id="c-aov">--</div>
+      <div class="delta" id="c-aov-sub">--</div>
+    </div>
+    <div class="kpi">
+      <div class="label">不重複買家</div>
+      <div class="value purple" id="c-buyers">--</div>
+      <div class="delta" id="c-buyers-sub">--</div>
+    </div>
+    <div class="kpi alert-amber">
+      <div class="label">回購率（≥2 單）</div>
+      <div class="value yellow" id="c-repeat">--</div>
+      <div class="delta" id="c-repeat-sub">--</div>
+    </div>
+  </div>
+
+  <div class="section-title">客單價：持續上升</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>月度客單價趨勢（真實訂單數計算）</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="aovChart"></canvas></div>
+      <p class="note">* 客單價 = 當月有效訂單商品總價 ÷ 當月有效訂單數（<strong>真實訂單數，非 v3 的入帳筆數 proxy</strong>）<br>
+      * 黃色虛線為各年度平均客單價</p>
+    </div>
+  </div>
+
+  <div class="section-title">訂單量：衰退的真正來源</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>月度訂單數 + 同月 YoY 增減</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="orderYoYChart"></canvas></div>
+      <p class="note">* 長條＝當月有效訂單數；紅色代表低於去年同月<br>
+      * 折線（右軸）＝同月 YoY 增減%；全期 37 個月報表齊備，YoY 自 2024/06 起皆可判讀</p>
+    </div>
+  </div>
+
+  <div class="section-title">回購結構</div>
+  <div class="chart-row two">
+    <div class="card">
+      <h3>買家組成與營收貢獻</h3>
+      <div class="chart-wrap" style="height:260px"><canvas id="repeatChart"></canvas></div>
+      <p class="note">* 少數回購買家貢獻不成比例的營收 —— 這是最值得經營的一群人</p>
+    </div>
+    <div class="card">
+      <h3>回購指標</h3>
+      <div class="table-scroll">
+      <table>
+        <thead><tr><th>指標</th><th class="amt">數值</th><th>說明</th></tr></thead>
+        <tbody id="repeatTable"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">品類衰退拆解：2025 vs 2026 同期（1–6 月）</div>
+  <div class="chart-row">
+    <div class="card">
+      <h3>各類別營收對比（找出衰退主力）</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="catCompareChart"></canvas></div>
+      <p class="note">* 依「2026 − 2025」差額由小到大排序，最左邊即衰退最嚴重的品類</p>
+    </div>
+  </div>
+
+  <div class="insights" id="custInsights"></div>
+</div>
+
+</div>
+
+<div class="footer">
+  <strong>口徑</strong>：現金流分頁為 <strong>純 TWD 口徑</strong>（依 D-002，與 v2／v3 一致）。v3 既有分頁的計算邏輯與數字<strong>未做任何更動</strong>。<br>
+  <strong>v4 新增口徑（D-003）</strong>：① 進貨成本只計淘寶「Milu進貨費用」，排除 Milu自用／楓雅／楓惠／阿波；② 有效訂單 = 狀態非「不成立」（<span id="fx-status"></span>）；③ 營收 = 有效訂單「商品總價」（不含運費），實收 = 商品總價 − 成交手續費 − 活動服務費 − 金流服務費；④ 商品毛利採 T1 貨號／T2 名稱精算、T3 類別毛利率中位數估算三層對應。<br>
+  <strong>已知資料缺口</strong>：蝦皮月報表 2023/06–2026/06 全 37 個月齊備（2024/06、2024/07 已於 2026-07-21 補上）；<strong>2021/12–2023/05 開店初期無訂單明細</strong>，該期間僅有 AndroMoney 現金流；淘寶無 2026/05 分頁＝該月確實無進貨（非缺漏），202512 分頁送達年份誤植不影響金額；成本表同貨號重複時取最後一列（最新批次）；成本表<strong>無庫存數量欄</strong>，故無法計算滯銷可釋放資金。<br>
+  <strong>資料來源</strong>：AndroMoney 匯出檔 20260720 ／ 蝦皮月報表 2023/06–2026/06 ／ 淘寶進貨紀錄 2023/08–2026/06 ／ 商品成本表「成本計算(new)」2021/12–2026/07。資料更新日：2026/07/21。
+</div>
+
+<script>
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#1e2533';
+Chart.defaults.font.family = "-apple-system,'PingFang TC',sans-serif";
+
+const M = {"fxRows":114,"fxExp":186352,"fxInc":1190,"fxBuy":167540,"fxBuyByYear":{"2021":7437,"2022":27015,"2023":14576,"2024":4867,"2025":102186,"2026":11460},"monthly":[{"m":"202112","inc":368,"exp":150,"orders":1},{"m":"202201","inc":1734,"exp":0,"orders":3},{"m":"202202","inc":234,"exp":0,"orders":1},{"m":"202203","inc":2169,"exp":1856,"orders":6},{"m":"202204","inc":3000,"exp":0,"orders":5},{"m":"202205","inc":5495,"exp":721,"orders":10},{"m":"202206","inc":2599,"exp":1166,"orders":8},{"m":"202207","inc":6830,"exp":900,"orders":13},{"m":"202208","inc":2535,"exp":1114,"orders":6},{"m":"202209","inc":11829,"exp":5527,"orders":19},{"m":"202210","inc":10700,"exp":5730,"orders":15},{"m":"202211","inc":13322,"exp":14746,"orders":17},{"m":"202212","inc":13649,"exp":16795,"orders":22},{"m":"202301","inc":8085,"exp":1482,"orders":14},{"m":"202302","inc":12435,"exp":8716,"orders":20},{"m":"202303","inc":12493,"exp":16486,"orders":20},{"m":"202304","inc":8120,"exp":6559,"orders":16},{"m":"202305","inc":14117,"exp":2901,"orders":22},{"m":"202306","inc":10862,"exp":9655,"orders":18},{"m":"202307","inc":9146,"exp":3380,"orders":18},{"m":"202308","inc":14240,"exp":30837,"orders":21},{"m":"202309","inc":12560,"exp":8473,"orders":21},{"m":"202310","inc":14343,"exp":10030,"orders":18},{"m":"202311","inc":16323,"exp":26395,"orders":20},{"m":"202312","inc":19567,"exp":29055,"orders":21},{"m":"202401","inc":32588,"exp":19507,"orders":24},{"m":"202402","inc":30691,"exp":22959,"orders":17},{"m":"202403","inc":22692,"exp":33864,"orders":22},{"m":"202404","inc":17835,"exp":21064,"orders":18},{"m":"202405","inc":17509,"exp":15535,"orders":22},{"m":"202406","inc":24537,"exp":26610,"orders":19},{"m":"202407","inc":33931,"exp":43216,"orders":21},{"m":"202408","inc":28728,"exp":30613,"orders":21},{"m":"202409","inc":33368,"exp":28276,"orders":21},{"m":"202410","inc":29484,"exp":36157,"orders":20},{"m":"202411","inc":28871,"exp":22407,"orders":20},{"m":"202412","inc":38297,"exp":28800,"orders":23},{"m":"202501","inc":35394,"exp":28966,"orders":17},{"m":"202502","inc":45245,"exp":22909,"orders":19},{"m":"202503","inc":42264,"exp":19917,"orders":21},{"m":"202504","inc":38294,"exp":8852,"orders":19},{"m":"202505","inc":37507,"exp":28378,"orders":20},{"m":"202506","inc":56188,"exp":24365,"orders":22},{"m":"202507","inc":31958,"exp":28180,"orders":22},{"m":"202508","inc":29352,"exp":29949,"orders":21},{"m":"202509","inc":27673,"exp":20212,"orders":21},{"m":"202510","inc":20735,"exp":12159,"orders":20},{"m":"202511","inc":27023,"exp":7647,"orders":20},{"m":"202512","inc":26413,"exp":14829,"orders":22},{"m":"202601","inc":23442,"exp":8538,"orders":22},{"m":"202602","inc":25067,"exp":9094,"orders":13},{"m":"202603","inc":35391,"exp":38497,"orders":22},{"m":"202604","inc":27803,"exp":24914,"orders":21},{"m":"202605","inc":21221,"exp":5589,"orders":20},{"m":"202606","inc":26508,"exp":13774,"orders":22},{"m":"202607","inc":12685,"exp":10095,"orders":13}],"annual":[{"y":"2021","inc":368,"exp":150},{"y":"2022","inc":74096,"exp":48555},{"y":"2023","inc":152291,"exp":153969},{"y":"2024","inc":338531,"exp":329008},{"y":"2025","inc":418046,"exp":246363},{"y":"2026","inc":172117,"exp":110501}],"cost":[{"item":"進貨","amt":568992},{"item":"蝦皮分成","amt":159412},{"item":"郵寄費","amt":73203},{"item":"廣告投放","amt":33220},{"item":"雜支","amt":22334},{"item":"傢俱","amt":12000},{"item":"文具","amt":9976},{"item":"稅金","amt":7387},{"item":"電子周邊","amt":1814},{"item":"刷卡手續費","amt":417},{"item":"退費還款","amt":-209}],"chanDonut":{"1688阿里巴巴":384233,"淘寶":174296,"蝦皮":4573,"其他":5890},"chanStack":{"2022":{"1688阿里巴巴":0,"淘寶":25191,"蝦皮":0,"其他":3777},"2023":{"1688阿里巴巴":7280,"淘寶":96899,"蝦皮":0,"其他":1611},"2024":{"1688阿里巴巴":173181,"淘寶":46604,"蝦皮":1030,"其他":0},"2025":{"1688阿里巴巴":142772,"淘寶":3375,"蝦皮":3543,"其他":502},"2026":{"1688阿里巴巴":61000,"淘寶":2227,"蝦皮":0,"其他":0}},"channels":["1688阿里巴巴","淘寶","蝦皮","其他"],"risk":[{"m":"202211","ratio":29.4},{"m":"202212","ratio":39.1},{"m":"202301","ratio":36.0},{"m":"202302","ratio":39.0},{"m":"202303","ratio":44.8},{"m":"202304","ratio":45.5},{"m":"202305","ratio":42.1},{"m":"202306","ratio":46.1},{"m":"202307","ratio":46.3},{"m":"202308","ratio":59.3},{"m":"202309","ratio":62.1},{"m":"202310","ratio":63.4},{"m":"202311","ratio":66.1},{"m":"202312","ratio":69.5},{"m":"202401","ratio":66.0},{"m":"202402","ratio":63.5},{"m":"202403","ratio":63.9},{"m":"202404","ratio":66.1},{"m":"202405","ratio":69.6},{"m":"202406","ratio":70.4},{"m":"202407","ratio":74.4},{"m":"202408","ratio":68.1},{"m":"202409","ratio":67.9},{"m":"202410","ratio":73.1},{"m":"202411","ratio":68.4},{"m":"202412","ratio":65.2},{"m":"202501","ratio":68.0},{"m":"202502","ratio":65.2},{"m":"202503","ratio":60.2},{"m":"202504","ratio":54.0},{"m":"202505","ratio":53.7},{"m":"202506","ratio":48.6},{"m":"202507","ratio":45.9},{"m":"202508","ratio":44.3},{"m":"202509","ratio":43.4},{"m":"202510","ratio":39.0},{"m":"202511","ratio":37.2},{"m":"202512","ratio":35.9},{"m":"202601","ratio":32.6},{"m":"202602","ratio":32.5},{"m":"202603","ratio":35.5},{"m":"202604","ratio":40.8},{"m":"202605","ratio":37.1},{"m":"202606","ratio":39.5},{"m":"202607","ratio":37.2}],"riskWarn":69.5,"riskOk":35.9,"yoy":{"2024":[32588,30691,22692,17835,17509,24537,33931,28728,33368,29484,28871,38297],"2025":[35394,45245,42264,38294,37507,56188,31958,29352,27673,20735,27023,26413],"2026":[23442,25067,35391,27803,21221,26508,12685,0,0,0,0,0]},"h1cur":159432,"h1prev":254892};
+const S = {"monthlyShopee":[{"m":"202306","rev":11650,"fee":1509,"f1":653,"f2":595,"f3":261,"n":63,"qty":802,"aov":184.9},{"m":"202307","rev":14080,"fee":1802,"f1":780,"f2":714,"f3":308,"n":61,"qty":960,"aov":230.8},{"m":"202308","rev":13383,"fee":1714,"f1":740,"f2":680,"f3":294,"n":69,"qty":968,"aov":194.0},{"m":"202309","rev":12285,"fee":1555,"f1":674,"f2":616,"f3":265,"n":55,"qty":1346,"aov":223.4},{"m":"202310","rev":11867,"fee":1530,"f1":665,"f2":606,"f3":259,"n":64,"qty":934,"aov":185.4},{"m":"202311","rev":23856,"fee":2468,"f1":1070,"f2":984,"f3":414,"n":98,"qty":1574,"aov":243.4},{"m":"202312","rev":24955,"fee":3064,"f1":1365,"f2":1163,"f3":536,"n":114,"qty":8005,"aov":218.9},{"m":"202401","rev":42691,"fee":5043,"f1":2373,"f2":1726,"f3":944,"n":255,"qty":36563,"aov":167.4},{"m":"202402","rev":29405,"fee":3762,"f1":1640,"f2":1493,"f3":629,"n":137,"qty":11554,"aov":214.6},{"m":"202403","rev":19455,"fee":2499,"f1":1079,"f2":990,"f3":430,"n":100,"qty":9298,"aov":194.6},{"m":"202404","rev":19208,"fee":2451,"f1":1068,"f2":976,"f3":407,"n":98,"qty":7724,"aov":196.0},{"m":"202405","rev":19661,"fee":2537,"f1":1101,"f2":1005,"f3":431,"n":111,"qty":5055,"aov":177.1},{"m":"202406","rev":30119,"fee":3894,"f1":1696,"f2":1542,"f3":656,"n":121,"qty":6854,"aov":248.9},{"m":"202407","rev":40618,"fee":5364,"f1":2214,"f2":2315,"f3":835,"n":164,"qty":11442,"aov":247.7},{"m":"202408","rev":37368,"fee":5061,"f1":2044,"f2":2238,"f3":779,"n":152,"qty":5987,"aov":245.8},{"m":"202409","rev":37490,"fee":5125,"f1":2073,"f2":2260,"f3":792,"n":148,"qty":4141,"aov":253.3},{"m":"202410","rev":32030,"fee":4313,"f1":1739,"f2":1906,"f3":668,"n":129,"qty":5683,"aov":248.3},{"m":"202411","rev":37114,"fee":5031,"f1":2042,"f2":2229,"f3":760,"n":156,"qty":10062,"aov":237.9},{"m":"202412","rev":40567,"fee":5573,"f1":2248,"f2":2462,"f3":863,"n":182,"qty":7491,"aov":222.9},{"m":"202501","rev":46806,"fee":6878,"f1":2591,"f2":3303,"f3":984,"n":202,"qty":13650,"aov":231.7},{"m":"202502","rev":50668,"fee":7510,"f1":2837,"f2":3608,"f3":1065,"n":175,"qty":7495,"aov":289.5},{"m":"202503","rev":48758,"fee":7139,"f1":2689,"f2":3428,"f3":1022,"n":189,"qty":7220,"aov":258.0},{"m":"202504","rev":46921,"fee":6912,"f1":2605,"f2":3320,"f3":987,"n":163,"qty":3249,"aov":287.9},{"m":"202505","rev":42263,"fee":6256,"f1":2353,"f2":2996,"f3":907,"n":165,"qty":4943,"aov":256.1},{"m":"202506","rev":48590,"fee":7276,"f1":2747,"f2":3502,"f3":1027,"n":149,"qty":6392,"aov":326.1},{"m":"202507","rev":32116,"fee":4792,"f1":1809,"f2":2305,"f3":678,"n":114,"qty":2314,"aov":281.7},{"m":"202508","rev":36092,"fee":5567,"f1":2013,"f2":2803,"f3":751,"n":132,"qty":1552,"aov":273.4},{"m":"202509","rev":29536,"fee":5238,"f1":1641,"f2":2986,"f3":611,"n":111,"qty":2758,"aov":266.1},{"m":"202510","rev":25500,"fee":4611,"f1":1449,"f2":2636,"f3":526,"n":88,"qty":3855,"aov":289.8},{"m":"202511","rev":34884,"fee":6179,"f1":1933,"f2":3512,"f3":734,"n":122,"qty":2666,"aov":285.9},{"m":"202512","rev":23735,"fee":4228,"f1":1321,"f2":2412,"f3":495,"n":89,"qty":1173,"aov":266.7},{"m":"202601","rev":34394,"fee":6472,"f1":2377,"f2":3158,"f3":937,"n":143,"qty":5450,"aov":240.5},{"m":"202602","rev":33181,"fee":6156,"f1":2278,"f2":2999,"f3":879,"n":120,"qty":3911,"aov":276.5},{"m":"202603","rev":36661,"fee":6832,"f1":2574,"f2":3299,"f3":959,"n":132,"qty":2813,"aov":277.7},{"m":"202604","rev":36461,"fee":6836,"f1":2555,"f2":3329,"f3":952,"n":112,"qty":5920,"aov":325.5},{"m":"202605","rev":24313,"fee":4532,"f1":1687,"f2":2204,"f3":641,"n":96,"qty":1242,"aov":253.3},{"m":"202606","rev":30331,"fee":5714,"f1":2134,"f2":2781,"f3":799,"n":107,"qty":3257,"aov":283.5}],"annualShopee":[{"y":"2023","rev":112076,"fee":13642,"n":524,"f1":5947,"f2":5358,"f3":2337,"feeRate":12.2},{"y":"2024","rev":385726,"fee":50653,"n":1753,"f1":21317,"f2":21142,"f3":8194,"feeRate":13.1},{"y":"2025","rev":465869,"fee":72586,"n":1699,"f1":25988,"f2":36811,"f3":9787,"feeRate":15.6},{"y":"2026","rev":195341,"fee":36542,"n":710,"f1":13605,"f2":17770,"f3":5167,"feeRate":18.7}],"totRev":1159012,"totFee":173423,"totOrders":4686,"feeRate":14.96,"aovAll":247.3,"buyers":4123,"repeat":330,"repeatRate":8.0,"repeatRev":302539,"repeatRevRate":26.1,"tier":{"T3未對應":1007713,"T2名稱":36774,"T1貨號":116048},"catMargin":{"標籤紙":0.2505,"貼紙":0.3799,"包裝資材":0.3106,"禮品擺飾":0.3609,"紙品文具":0.3688,"膠帶":0.358,"書籤":0.3687,"其他":0.3692},"defaultMargin":0.3692,"bmN":13,"top":[{"name":"🌟ins名畫油畫系列 印象大師 絕美藝術金屬流蘇書籤","rev":82129,"qty":1870,"gp":30281,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"😺ins Decole Zakka日系雜貨可愛貓咪精選款療癒擺飾 交換禮物 賣場A","rev":73511,"qty":689,"gp":28377,"gm":38.6,"tier":"T3 估算","mix":[24,0,76]},{"name":"🌟喵喵機/愛立熊/熊貓機/POS機/口袋相片機 有背膠連續標籤貼紙 無背膠打印紙 57/80/110mm","rev":62499,"qty":3972,"gp":15656,"gm":25.1,"tier":"T3 估算","mix":[0,0,100]},{"name":"🌟口袋精靈😺😺🐤🌟🧻🧻🧻57/80/110歡迎洽詢","rev":49946,"qty":49946,"gp":12931,"gm":25.9,"tier":"T3 估算","mix":[25,0,75]},{"name":"🌟ins寓見誠品 繁花掠影系列 設計款絕美名畫鎏金流蘇書籤","rev":48624,"qty":1241,"gp":17928,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"🌟ins寓見誠品 復古印記系列 絕美名畫收藏款金屬書籤","rev":44766,"qty":1262,"gp":16505,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"🌟連續標籤打印貼紙 自訂裁切長度 適用多種機型佳博/井井小元氣/錦宮KING JIMlite/Brother糖果","rev":43792,"qty":518,"gp":11220,"gm":25.6,"tier":"T3 估算","mix":[18,0,82]},{"name":"🌟ins寓見誠品 色彩印象系列 絕美名畫帶尺刻度兩用金屬書籤","rev":34038,"qty":861,"gp":12550,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"🌟超值100米可愛卡通印花防水封箱膠帶","rev":32227,"qty":431,"gp":11537,"gm":35.8,"tier":"T3 估算","mix":[0,0,100]},{"name":"🌟喵喵機/愛立熊/熊貓外送/POS出單機/錯題打印 熱感應紙、標籤貼紙 57x30/80x30/110x30","rev":31556,"qty":2105,"gp":7905,"gm":25.1,"tier":"T3 估算","mix":[0,0,100]},{"name":"😺ins Decole Zakka日系雜貨可愛貓咪精選款療癒擺飾 交換禮物 賣場B","rev":18095,"qty":185,"gp":6436,"gm":35.6,"tier":"T3 估算","mix":[26,0,74]},{"name":"🌟ins虛懷若竹系列 燙金絕美古風竹葉古風留言便籤紙 一組90入","rev":18062,"qty":353,"gp":6661,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"😺ins Decole Zakka日系雜貨可愛貓咪精選款療癒擺飾 交換禮物 賣場C","rev":17264,"qty":226,"gp":6163,"gm":35.7,"tier":"T3 估算","mix":[25,0,75]},{"name":"🌟ins紙先生 浪漫復興系列 名畫高質感燙金PVC書籤 一套5枚","rev":14553,"qty":441,"gp":5366,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"📖ins 玫瑰故事系列 精美古典花卉金屬書籤","rev":12753,"qty":327,"gp":4702,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"📖ins 浪漫繁花系列 精美古典花卉金屬書籤","rev":12441,"qty":319,"gp":4587,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"🌟OPP透明自黏袋 超值5絲 厚實7絲 飾品口罩手機透明包裝袋","rev":9922,"qty":429,"gp":3082,"gm":31.1,"tier":"T3 估算","mix":[0,0,100]},{"name":"😺ins Decole Zakka日系雜貨可愛貓咪精選款療癒擺飾 交換禮物 賣場D","rev":8700,"qty":90,"gp":2802,"gm":32.2,"tier":"T3 估算","mix":[48,0,52]},{"name":"🌟 ins學院風格子元素系列淡彩便籤紙 一組200入","rev":7915,"qty":265,"gp":2919,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]},{"name":"🌸寓見誠品 靜謐花語系列 鎏金絕美藝術金屬書籤","rev":7740,"qty":192,"gp":2854,"gm":36.9,"tier":"T3 估算","mix":[0,0,100]}],"cats":[{"cat":"書籤","rev":304989,"gp":112374,"qty":7793,"gm":36.8},{"cat":"標籤紙","rev":215080,"gp":54777,"qty":57318,"gm":25.5},{"cat":"紙品文具","rev":174745,"gp":64860,"qty":7156,"gm":37.1},{"cat":"禮品擺飾","rev":133702,"gp":49904,"qty":1348,"gm":37.3},{"cat":"貼紙","rev":121172,"gp":46315,"qty":33857,"gm":38.2},{"cat":"膠帶","rev":99475,"gp":35486,"qty":5141,"gm":35.7},{"cat":"其他","rev":77533,"gp":28709,"qty":3490,"gm":37.0},{"cat":"包裝資材","rev":33839,"gp":10559,"qty":2857,"gm":31.2}],"catCompare":[{"cat":"書籤","y25":102992,"y26":60235,"d":-42757},{"cat":"禮品擺飾","y25":47419,"y26":19922,"d":-27497},{"cat":"貼紙","y25":27639,"y26":16042,"d":-11597},{"cat":"紙品文具","y25":48882,"y26":40928,"d":-7954},{"cat":"標籤紙","y25":22500,"y26":14809,"d":-7691},{"cat":"膠帶","y25":22518,"y26":19378,"d":-3140},{"cat":"包裝資材","y25":4649,"y26":4748,"d":99},{"cat":"其他","y25":10961,"y26":27092,"d":16131}],"dead":[{"code":"GFT2509.00053","name":"端午騎魚柴犬貓","cost":60.1,"price":139,"gm":31.8,"cat":"禮品擺飾"},{"code":"PKG2309.00155","name":"[8絲]PE白邊透明夾鏈袋 17*25","cost":49.9,"price":99,"gm":24.6,"cat":"包裝資材"},{"code":"GFT2509.00052","name":"富士山貓","cost":47.6,"price":109,"gm":31.4,"cat":"禮品擺飾"},{"code":"TAG2112.00003","name":"標籤紙：棕色熊熊","cost":39.4,"price":84,"gm":28.1,"cat":"標籤紙"},{"code":"MPD2512.00455","name":"墨言 小熊花匣系列 三享浮雕燙金便簽","cost":35.9,"price":85,"gm":32.7,"cat":"紙品文具"},{"code":"PKG2311.00160","name":"透明底Thankyou45mm","cost":34.7,"price":79,"gm":31.1,"cat":"包裝資材"},{"code":"GFT2601.00459","name":"信的戀人 名畫系列 魔法拼拼豆像素貼","cost":30.1,"price":79,"gm":36.9,"cat":"禮品擺飾"},{"code":"MPD2510.00231","name":"虛懷若竹系列 燙金便簽紙","cost":28.7,"price":69,"gm":33.3,"cat":"紙品文具"},{"code":"PKG2308.00154","name":"[7絲]OPP自黏袋 16*24","cost":26.2,"price":42,"gm":12.6,"cat":"包裝資材"},{"code":"MPD2607.00496","name":"NOTE FOR 野色琉箋系列 硫酸便條紙","cost":25.1,"price":66,"gm":36.9,"cat":"紙品文具"},{"code":"MPD2607.00494","name":"語閑 萌萌日常系列 貓咪可立便簽","cost":22.6,"price":65,"gm":40.2,"cat":"紙品文具"},{"code":"STK2607.00497","name":"意鳥 瓷物系列 模切膠帶貼紙","cost":20.0,"price":54,"gm":37.9,"cat":"貼紙"},{"code":"STK2412.00075","name":"番茄醬少女 週末派對系列 郵票造型排廢膠帶","cost":18.2,"price":42,"gm":31.7,"cat":"貼紙"},{"code":"STK2507.00147","name":"陌墨 生活印記系列 復古雙材質素材貼紙","cost":18.1,"price":43,"gm":32.8,"cat":"貼紙"},{"code":"STK2502.00077","name":"糖詩 訊息收集系列 銅版紙排廢膠帶","cost":17.3,"price":45,"gm":36.5,"cat":"貼紙"},{"code":"STK2507.00144","name":"語閒 慢調生活系列 美拉德風花卉燙金郵票貼紙包","cost":16.4,"price":41,"gm":35.0,"cat":"貼紙"},{"code":"STK2507.00149","name":"美好的一天 香榭的落葉系列 植物手帳裝飾貼膠帶","cost":16.3,"price":39,"gm":33.3,"cat":"貼紙"},{"code":"STK2403.00061","name":"詩和遠方系列 燙金貼紙包","cost":16.1,"price":39,"gm":33.8,"cat":"貼紙"},{"code":"STK2607.00495","name":"暮光 數位塊塊·雲系列鹽系模切膠帶標籤貼","cost":15.7,"price":42,"gm":37.7,"cat":"貼紙"},{"code":"STK2112.00062","name":"鹽系水彩圓點貼紙","cost":15.5,"price":39,"gm":35.4,"cat":"貼紙"},{"code":"STK2505.00142","name":"沐染 貓の空事劇場系列 手帳裝飾封口貼 盒裝貼紙","cost":15.4,"price":36,"gm":32.2,"cat":"貼紙"},{"code":"STK2407.00128","name":"365日付貼紙","cost":14.7,"price":36,"gm":34.3,"cat":"貼紙"},{"code":"STK2501.00076","name":"Infeel.Me玫瑰過往系列PET貝殼光花朵長條膠帶","cost":13.9,"price":36,"gm":36.5,"cat":"貼紙"},{"code":"MPD2607.00501","name":"NOTE FOR 茶包小烏日記系列 便條紙","cost":13.9,"price":37,"gm":37.4,"cat":"紙品文具"},{"code":"STK2507.00126","name":"幕楓玫瑰雨系列 手帳貼紙包","cost":13.5,"price":33,"gm":34.2,"cat":"貼紙"},{"code":"STK2507.00136","name":"收集的時光系列 手帳燙金貼紙包","cost":12.2,"price":33,"gm":38.1,"cat":"貼紙"},{"code":"GFT2603.00488","name":"NOTE FOR 風與花的對話系列 M5活頁分隔頁","cost":12.2,"price":32,"gm":37.0,"cat":"禮品擺飾"},{"code":"STK2408.00100","name":"Infeel.me 山月為枕系列 PET燙金貼紙","cost":12.1,"price":31,"gm":35.9,"cat":"貼紙"},{"code":"PKG2308.00156","name":"拇指迷你彈力髮圈(100條)","cost":12.1,"price":20,"gm":14.6,"cat":"包裝資材"},{"code":"STK2601.00468","name":"PaperMore 心動存檔系列 貼紙","cost":11.8,"price":31,"gm":36.9,"cat":"貼紙"},{"code":"WAT2601.00477","name":"etori 5卷基礎裝飾系列和紙膠帶","cost":11.6,"price":33,"gm":39.8,"cat":"膠帶"},{"code":"STK2401.00082","name":"躲進彩虹裡系列貼紙","cost":11.5,"price":28,"gm":33.8,"cat":"貼紙"},{"code":"STK2407.00129","name":"瓶中愛語透明PET防水貼紙","cost":11.5,"price":29,"gm":35.3,"cat":"貼紙"},{"code":"STK2507.00112","name":"infeel.me陪你可愛系列三 動物行李箱貼紙","cost":10.8,"price":28,"gm":36.4,"cat":"貼紙"},{"code":"STK2407.00068","name":"紙先生 王子星夢系列 PVC燙金平張貼紙","cost":10.5,"price":28,"gm":37.6,"cat":"貼紙"},{"code":"MPD2607.00498","name":"AGUGU 23℃的日常系列 m5韓系便條紙","cost":10.4,"price":28,"gm":37.7,"cat":"紙品文具"},{"code":"STK2505.00138","name":"早沫 尋找記憶系列 復古手帳貼紙包","cost":10.3,"price":26,"gm":35.5,"cat":"貼紙"},{"code":"STK2505.00140","name":"早沫 玫瑰花亭系列 燙金植物花卉PET貼紙包","cost":10.3,"price":26,"gm":35.5,"cat":"貼紙"},{"code":"MPD2607.00500","name":"NOTE FOR 塞納晚風系列 便利貼","cost":10.3,"price":26,"gm":35.5,"cat":"紙品文具"},{"code":"STK2401.00080","name":"淘氣喵醬盒裝貼紙","cost":10.2,"price":25,"gm":34.1,"cat":"貼紙"}],"deadN":138,"deadCost":1193,"skuTotal":299,"skuListed":266,"tbTotal":686374,"statusCount":{"完成":4455,"不成立":396,"進行中":231},"recon":[{"m":"202306","amInc":10862,"shopee":11650,"dInc":7.3,"amExp":9655,"taobao":0,"dExp":-100.0},{"m":"202307","amInc":9146,"shopee":14080,"dInc":53.9,"amExp":3380,"taobao":0,"dExp":-100.0},{"m":"202308","amInc":14240,"shopee":13383,"dInc":-6.0,"amExp":30837,"taobao":32134,"dExp":4.2},{"m":"202309","amInc":12560,"shopee":12285,"dInc":-2.2,"amExp":8473,"taobao":7925,"dExp":-6.5},{"m":"202310","amInc":14343,"shopee":11867,"dInc":-17.3,"amExp":10030,"taobao":28903,"dExp":188.2},{"m":"202311","amInc":16323,"shopee":23856,"dInc":46.1,"amExp":26395,"taobao":5560,"dExp":-78.9},{"m":"202312","amInc":19567,"shopee":24955,"dInc":27.5,"amExp":29055,"taobao":21266,"dExp":-26.8},{"m":"202401","amInc":32588,"shopee":42691,"dInc":31.0,"amExp":19507,"taobao":11980,"dExp":-38.6},{"m":"202402","amInc":30691,"shopee":29405,"dInc":-4.2,"amExp":22959,"taobao":19961,"dExp":-13.1},{"m":"202403","amInc":22692,"shopee":19455,"dInc":-14.3,"amExp":33864,"taobao":11962,"dExp":-64.7},{"m":"202404","amInc":17835,"shopee":19208,"dInc":7.7,"amExp":21064,"taobao":7726,"dExp":-63.3},{"m":"202405","amInc":17509,"shopee":19661,"dInc":12.3,"amExp":15535,"taobao":26286,"dExp":69.2},{"m":"202406","amInc":24537,"shopee":30119,"dInc":22.7,"amExp":26610,"taobao":22530,"dExp":-15.3},{"m":"202407","amInc":33931,"shopee":40618,"dInc":19.7,"amExp":43216,"taobao":29177,"dExp":-32.5},{"m":"202408","amInc":28728,"shopee":37368,"dInc":30.1,"amExp":30613,"taobao":26427,"dExp":-13.7},{"m":"202409","amInc":33368,"shopee":37490,"dInc":12.4,"amExp":28276,"taobao":23891,"dExp":-15.5},{"m":"202410","amInc":29484,"shopee":32030,"dInc":8.6,"amExp":36157,"taobao":3290,"dExp":-90.9},{"m":"202411","amInc":28871,"shopee":37114,"dInc":28.6,"amExp":22407,"taobao":31638,"dExp":41.2},{"m":"202412","amInc":38297,"shopee":40567,"dInc":5.9,"amExp":28800,"taobao":13362,"dExp":-53.6},{"m":"202501","amInc":35394,"shopee":46806,"dInc":32.2,"amExp":28966,"taobao":23524,"dExp":-18.8},{"m":"202502","amInc":45245,"shopee":50668,"dInc":12.0,"amExp":22909,"taobao":8291,"dExp":-63.8},{"m":"202503","amInc":42264,"shopee":48758,"dInc":15.4,"amExp":19917,"taobao":39132,"dExp":96.5},{"m":"202504","amInc":38294,"shopee":46921,"dInc":22.5,"amExp":8852,"taobao":24986,"dExp":182.3},{"m":"202505","amInc":37507,"shopee":42263,"dInc":12.7,"amExp":28378,"taobao":50480,"dExp":77.9},{"m":"202506","amInc":56188,"shopee":48590,"dInc":-13.5,"amExp":24365,"taobao":32516,"dExp":33.5},{"m":"202507","amInc":31958,"shopee":32116,"dInc":0.5,"amExp":28180,"taobao":18797,"dExp":-33.3},{"m":"202508","amInc":29352,"shopee":36092,"dInc":23.0,"amExp":29949,"taobao":31144,"dExp":4.0},{"m":"202509","amInc":27673,"shopee":29536,"dInc":6.7,"amExp":20212,"taobao":7794,"dExp":-61.4},{"m":"202510","amInc":20735,"shopee":25500,"dInc":23.0,"amExp":12159,"taobao":11878,"dExp":-2.3},{"m":"202511","amInc":27023,"shopee":34884,"dInc":29.1,"amExp":7647,"taobao":21541,"dExp":181.7},{"m":"202512","amInc":26413,"shopee":23735,"dInc":-10.1,"amExp":14829,"taobao":9751,"dExp":-34.2},{"m":"202601","amInc":23442,"shopee":34394,"dInc":46.7,"amExp":8538,"taobao":26753,"dExp":213.3},{"m":"202602","amInc":25067,"shopee":33181,"dInc":32.4,"amExp":9094,"taobao":7677,"dExp":-15.6},{"m":"202603","amInc":35391,"shopee":36661,"dInc":3.6,"amExp":38497,"taobao":23407,"dExp":-39.2},{"m":"202604","amInc":27803,"shopee":36461,"dInc":31.1,"amExp":24914,"taobao":683,"dExp":-97.3},{"m":"202605","amInc":21221,"shopee":24313,"dInc":14.6,"amExp":5589,"taobao":0,"dExp":-100.0},{"m":"202606","amInc":26508,"shopee":30331,"dInc":14.4,"amExp":13774,"taobao":24002,"dExp":74.3}],"missingShopee":[],"covShopee":1159012,"covAM":1013050,"covRate":114.4,"covTbSum":686374,"covAMExp":793602,"covExpRate":86.5,"reconMonths":37,"qtyAll":118960,"qtyUnit1":68199,"amtUnit1":61786,"qtyAdj":50761,"unit1Rows":4174,"annualAov":{"2023":213.9,"2024":220.0,"2025":274.2,"2026":275.1},"tierRows":""};
+const CURY = '2026';
+const fmt = n => Math.round(n).toLocaleString();
+const fmtK = n => Math.abs(n)>=10000?(n/10000).toFixed(1)+'萬':Math.round(n).toLocaleString();
+const pct = n => (n>=0?'+':'') + n.toFixed(1) + '%';
+const ymLabel = k => k.slice(0,4)+'/'+k.slice(4,6);
+const mkInsights = (el,cards) => document.getElementById(el).innerHTML = cards.map(c=>
+  `<div class="insight ${c.cls||''}"><div class="i-icon">${c.icon}</div><div class="i-title">${c.title}</div><div class="i-body">${c.body}</div></div>`).join('');
+
+const annual = M.annual;
+const monthly = M.monthly;
+
+/* ============ 分頁切換：圖表延後到第一次顯示才建立（避免 0 寬度） ============ */
+const builders = {};
+const built = {};
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.p===id));
+  if(!built[id] && builders[id]){ built[id]=true; builders[id](); }
+  window.scrollTo({top:0,behavior:'instant'});
+}
+document.getElementById('tabbar').addEventListener('click',e=>{
+  const t=e.target.closest('.tab'); if(t) showPanel(t.dataset.p);
+});
+
+/* ==================== P1：沿用 v3 邏輯，數字不變 ==================== */
+const totInc = annual.reduce((s,d)=>s+d.inc,0);
+const totExp = annual.reduce((s,d)=>s+d.exp,0);
+document.getElementById('k-inc').textContent = '$'+fmt(totInc);
+document.getElementById('k-exp').textContent = '$'+fmt(totExp);
+document.getElementById('k-net').textContent = (totInc-totExp>=0?'+':'−')+'$'+fmt(Math.abs(totInc-totExp));
+document.getElementById('k-net-sub').textContent = '約 '+ (monthly.length/12).toFixed(1) +' 年';
+const a25 = annual.find(d=>d.y==='2025');
+const m25 = (a25.inc-a25.exp)/a25.inc*100;
+document.getElementById('k-m25').textContent = m25.toFixed(0)+'%';
+document.getElementById('k-avg25').textContent = '+$'+fmt((a25.inc-a25.exp)/12);
+document.getElementById('verdictSub').textContent = '累計淨利 +$'+fmt(totInc-totExp);
+
+const curRisk = M.risk[M.risk.length-1];
+const rc = document.getElementById('k-risk-card');
+let riskState, riskIcon, riskCls, riskTxt;
+if (curRisk.ratio > M.riskWarn) { riskState='alert-red'; riskIcon='⚠️'; riskCls='red'; riskTxt='高於 2023 警戒線 '+M.riskWarn+'%，進貨過量'; }
+else if (curRisk.ratio < M.riskOk) { riskState='alert-green'; riskIcon='✅'; riskCls='green'; riskTxt='低於 2025 健康線 '+M.riskOk+'%，庫存健康'; }
+else { riskState='alert-amber'; riskIcon='⚠️'; riskCls='yellow'; riskTxt='介於健康線 '+M.riskOk+'% 與警戒線 '+M.riskWarn+'% 之間'; }
+rc.classList.add(riskState);
+document.getElementById('k-risk').innerHTML = `<span class="${riskCls}">${riskIcon} ${curRisk.ratio}%</span>`;
+document.getElementById('k-risk-sub').textContent = riskTxt;
+
+const dH1 = M.h1cur - M.h1prev, pH1 = M.h1prev ? dH1/M.h1prev*100 : 0;
+document.getElementById('yoyAlert').innerHTML = dH1 < 0
+  ? `⚠️ <strong>營收警訊</strong>：${CURY} 年 1–6 月收入合計 <strong>$${fmt(M.h1cur)}</strong>，較 2025 年同期 $${fmt(M.h1prev)} <strong>${pct(pH1)}</strong>（少了 $${fmt(Math.abs(dH1))}）。<strong>v4 已診斷出原因</strong>：是「訂單量」下滑而非客單價 —— 詳見「👥 客群與衰退診斷」分頁。（7 月為部分月份，未納入判定）`
+  : `📈 ${CURY} 年 1–6 月收入合計 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 ${pct(pH1)}，表現優於去年。（7 月為部分月份，未納入判定）`;
+
+const phaseLabel={start:'🌱 起步',scale:'🔥 擴張',profit:'💰 獲利'};
+const phaseCls={start:'phase-start',scale:'phase-scale',profit:'phase-profit'};
+const phaseOf = d => { const n=d.inc-d.exp, m=d.inc?n/d.inc:0;
+  if (d.inc < 100000) return 'start'; return m>=0.2?'profit':'scale'; };
+new Chart(document.getElementById('annualChart'),{
+  type:'bar',
+  data:{labels:annual.map(d=>d.y),datasets:[
+    {label:'收入',data:annual.map(d=>d.inc),backgroundColor:'rgba(74,222,128,0.65)',borderRadius:4,order:2},
+    {label:'支出',data:annual.map(d=>d.exp),backgroundColor:'rgba(248,113,113,0.65)',borderRadius:4,order:3},
+    {label:'淨利',data:annual.map(d=>d.inc-d.exp),type:'line',borderColor:'#c084fc',
+      backgroundColor:'rgba(192,132,252,0.08)',fill:true,pointRadius:5,pointBackgroundColor:'#c084fc',borderWidth:2.5,order:1,tension:0.3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'}},y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+});
+document.getElementById('annualTable').innerHTML=annual.map(d=>{
+  const net=d.inc-d.exp, margin=d.inc>0?((net/d.inc)*100).toFixed(0):'—', ph=phaseOf(d);
+  return `<tr><td><strong>${d.y}</strong></td><td><span class="phase-badge ${phaseCls[ph]}">${phaseLabel[ph]}</span></td>
+    <td class="amt pos">$${fmt(d.inc)}</td><td class="amt neg">$${fmt(d.exp)}</td>
+    <td class="amt ${net>=0?'pos':'neg'}">${net>=0?'+':''}$${fmt(net)}<span style="color:#64748b;font-size:0.72rem"> (${margin}%)</span></td></tr>`;
+}).join('');
+
+const mData=monthly.filter(d=>d.m>='202201');
+const mLabels=mData.map(d=>ymLabel(d.m));
+new Chart(document.getElementById('monthlyChart'),{
+  type:'bar',
+  data:{labels:mLabels,datasets:[
+    {label:'收入',data:mData.map(d=>d.inc),backgroundColor:'rgba(74,222,128,0.55)',order:3},
+    {label:'支出',data:mData.map(d=>d.exp),backgroundColor:'rgba(248,113,113,0.55)',order:4},
+    {label:'結餘',data:mData.map(d=>d.inc-d.exp),type:'line',borderColor:'#c084fc',
+      backgroundColor:'transparent',pointRadius:2,borderWidth:2,order:1,tension:0.35,
+      segment:{borderColor:ctx=>ctx.p1.parsed.y<0?'#f87171':'#c084fc'}}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:14,font:{size:10}}},
+      y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+});
+const surplusData=mData.map(d=>d.inc-d.exp);
+const rolling3=surplusData.map((v,i)=>{const w=[surplusData[i-2],surplusData[i-1],v].filter(v=>v!==undefined);return w.reduce((s,x)=>s+x,0)/w.length;});
+new Chart(document.getElementById('surplusChart'),{
+  type:'bar',
+  data:{labels:mLabels,datasets:[
+    {label:'月結餘',data:surplusData,backgroundColor:surplusData.map(v=>v>=0?'rgba(74,222,128,0.5)':'rgba(248,113,113,0.5)'),borderRadius:2,order:2},
+    {label:'3月均線',data:rolling3,type:'line',borderColor:'#fbbf24',borderWidth:2,pointRadius:0,order:1,tension:0.4}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:12,font:{size:9}}},
+      y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+});
+new Chart(document.getElementById('marginChart'),{
+  type:'line',
+  data:{labels:mLabels,datasets:[{label:'月淨利率%',data:mData.map(d=>d.inc>0?((d.inc-d.exp)/d.inc*100):null),
+    borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,0.07)',fill:true,pointRadius:2,borderWidth:1.5,tension:0.35}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw===null?'—':ctx.raw.toFixed(1)+'%'}`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:12,font:{size:9}}},
+      y:{grid:{color:'#1e2533'},ticks:{callback:v=>v+'%'}}}}
+});
+
+const oData = monthly.filter(d=>d.m>='202401');
+new Chart(document.getElementById('orderChart'),{
+  type:'bar',
+  data:{labels:oData.map(d=>ymLabel(d.m)),datasets:[
+    {label:'訂單筆數（proxy）',data:oData.map(d=>d.orders),backgroundColor:'rgba(192,132,252,0.6)',borderRadius:3,order:2,yAxisID:'y'},
+    {label:'平均客單價',data:oData.map(d=>d.orders?Math.round(d.inc/d.orders):null),type:'line',
+      borderColor:'#fbbf24',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:0.3,order:1,yAxisID:'y1'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.yAxisID==='y1'
+      ? ` 客單價: $${fmt(ctx.raw)}` : ` 筆數: ${ctx.raw}（收入 $${fmt(oData[ctx.dataIndex].inc)}）`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:12,font:{size:10}}},
+      y:{grid:{color:'#1e2533'},title:{display:true,text:'筆數',font:{size:10}},beginAtZero:true},
+      y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'客單價 (TWD)',font:{size:10}},ticks:{callback:v=>fmtK(v)}}}}
+});
+
+const MONTH_LABELS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const LASTMO = 7;
+const curArr = M.yoy[CURY], prevArr = M.yoy['2025'];
+new Chart(document.getElementById('yoyChart'),{
+  type:'bar',
+  data:{labels:MONTH_LABELS,datasets:[
+    {label:'2024',data:M.yoy['2024'],backgroundColor:'rgba(100,116,139,0.7)',borderRadius:3},
+    {label:'2025',data:prevArr,backgroundColor:'rgba(96,165,250,0.75)',borderRadius:3},
+    {label:CURY,data:curArr.map((v,i)=>i+1<=LASTMO?v:null),
+      backgroundColor:curArr.map((v,i)=>(i+1<LASTMO && v<prevArr[i])?'rgba(248,113,113,0.9)':'rgba(192,132,252,0.8)'),
+      borderRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+      label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`,
+      afterLabel:ctx=>{ if(ctx.dataset.label!==CURY) return '';
+        const p=prevArr[ctx.dataIndex]; if(!p) return '';
+        const d=(ctx.raw-p)/p*100; return `  vs 2025 同月 ${pct(d)}`; }}}},
+    scales:{x:{grid:{color:'#1e2533'}},y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+});
+
+const chanColors={'1688阿里巴巴':'#c084fc','淘寶':'#fb923c','蝦皮':'#f87171','其他':'#64748b'};
+const chanTotal = M.channels.reduce((s,c)=>s+(M.chanDonut[c]||0),0);
+new Chart(document.getElementById('chanDonut'),{
+  type:'doughnut',
+  data:{labels:M.channels,datasets:[{data:M.channels.map(c=>M.chanDonut[c]||0),
+    backgroundColor:M.channels.map(c=>chanColors[c]),borderWidth:1,borderColor:'#0d1117'}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12,padding:8}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: $${fmt(ctx.raw)} (${(ctx.raw/chanTotal*100).toFixed(1)}%)`}}}}
+});
+const chanYears = Object.keys(M.chanStack).sort();
+new Chart(document.getElementById('chanStack'),{
+  type:'bar',
+  data:{labels:chanYears,datasets:M.channels.map(c=>({label:c,
+    data:chanYears.map(y=>M.chanStack[y][c]||0),backgroundColor:chanColors[c],borderWidth:0}))},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11},boxWidth:10,padding:6}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`}}},
+    scales:{x:{stacked:true,grid:{color:'#1e2533'}},y:{stacked:true,grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+});
+
+document.getElementById('rw').textContent = M.riskWarn+'%';
+document.getElementById('ro').textContent = M.riskOk+'%';
+new Chart(document.getElementById('riskChart'),{
+  type:'line',
+  data:{labels:M.risk.map(d=>ymLabel(d.m)),datasets:[
+    {label:'滾動12月 進貨/收入',data:M.risk.map(d=>d.ratio),borderColor:'#c084fc',
+      backgroundColor:'rgba(192,132,252,0.08)',fill:true,borderWidth:2,pointRadius:2,tension:0.3,order:1},
+    {label:'⚠️ 警戒線（2023 = '+M.riskWarn+'%）',data:M.risk.map(()=>M.riskWarn),borderColor:'#f87171',
+      borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,order:2},
+    {label:'✅ 健康線（2025 = '+M.riskOk+'%）',data:M.risk.map(()=>M.riskOk),borderColor:'#4ade80',
+      borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,order:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11},boxWidth:14}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw}%`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:12,font:{size:10}}},
+      y:{grid:{color:'#1e2533'},beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+});
+
+const cost = M.cost;
+const costColors=['#c084fc','#60a5fa','#4ade80','#fbbf24','#f87171','#34d399','#fb923c','#e879f9','#38bdf8','#a3e635','#94a3b8'];
+const totalCost=cost.reduce((s,d)=>s+d.amt,0);
+document.getElementById('costTable').innerHTML=cost.map((d,i)=>`
+  <tr><td style="display:flex;align-items:center;gap:6px">
+    <span style="width:8px;height:8px;background:${costColors[i%costColors.length]};border-radius:2px;flex-shrink:0;display:inline-block"></span>${d.item}</td>
+  <td class="amt neg">$${fmt(d.amt)}</td>
+  <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${Math.max(0,(d.amt/cost[0].amt*100)).toFixed(1)}%;background:${costColors[i%costColors.length]}"></div></div>
+  <span style="font-size:0.75rem;color:#64748b;min-width:32px">${(d.amt/totalCost*100).toFixed(0)}%</span></div></td></tr>`).join('');
+new Chart(document.getElementById('costPie'),{
+  type:'doughnut',
+  data:{labels:cost.map(d=>d.item),datasets:[{data:cost.map(d=>Math.max(0,d.amt)),backgroundColor:costColors,borderWidth:1,borderColor:'#0d1117'}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: $${fmt(ctx.raw)} (${(ctx.raw/totalCost*100).toFixed(0)}%)`}}}}
+});
+
+(function(){
+  const buyPct = (cost.find(d=>d.item==='進貨').amt/totalCost*100).toFixed(0);
+  const chanTop = M.channels.map(c=>[c,M.chanDonut[c]||0]).sort((a,b)=>b[1]-a[1]);
+  const a26 = annual.find(d=>d.y===CURY);
+  const m26 = (a26.inc-a26.exp)/a26.inc*100;
+  const aov = oData.filter(d=>d.orders>0);
+  const aovLast = aov[aov.length-1];
+  mkInsights('insights',[
+    {cls:'', icon:'📈', title:'獲利能力持續改善',
+     body:`2022 利潤率 <strong>34%</strong> → 2023 幾乎打平（-1%）→ 2024 回升 <strong>3%</strong> → 2025 大幅提升至 <strong>${m25.toFixed(0)}%</strong>，${CURY} 迄今 <strong>${m26.toFixed(0)}%</strong>。2023 為快速擴張期，進貨量大造成短暫虧損；2025 起找到更好的商品結構與銷售節奏。`},
+    {cls: dH1<0?'warn':'', icon: dH1<0?'⚠️':'📊', title: dH1<0?'營收動能轉弱（v4 已找出原因）':'營收動能持續',
+     body: dH1<0
+       ? `${CURY} 年 1–6 月收入 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 <strong>${pct(pH1)}</strong>。<strong>v4 診斷</strong>：蝦皮訂單資料顯示客單價其實是<strong class="green">上升</strong>的（2023 約 $${fmt(S.annualAov['2023'])} → ${CURY} 約 $${fmt(S.annualAov['2026'])}），衰退全部來自<strong class="red">訂單量下滑</strong>。要救的是流量與曝光，不是定價。`
+       : `${CURY} 年 1–6 月收入 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 <strong>${pct(pH1)}</strong>，動能維持。`},
+    {cls:'', icon:'🚚', title:'進貨集中於單一通路',
+     body:`進貨成本佔總支出 <strong>${buyPct}%</strong>。通路以 <strong>${chanTop[0][0]}</strong>（$${fmt(chanTop[0][1])}，${(chanTop[0][1]/chanTotal*100).toFixed(0)}%）為主，其次 ${chanTop[1][0]}（$${fmt(chanTop[1][1])}）。2024 起明顯從淘寶轉向 1688，集中度上升有議價優勢但也提高單一供應鏈風險。`},
+    {cls: curRisk.ratio>M.riskWarn?'warn':'', icon: curRisk.ratio>M.riskWarn?'⚠️':(curRisk.ratio<M.riskOk?'✅':'🟡'), title:'庫存風險落點',
+     body:`目前滾動 12 個月進貨/收入比為 <strong>${curRisk.ratio}%</strong>，${
+       curRisk.ratio>M.riskWarn ? `<strong class="red">高於 2023 警戒線 ${M.riskWarn}%</strong>，資金正大量壓在庫存上，應立即減緩進貨。`
+       : curRisk.ratio<M.riskOk ? `<strong class="green">低於 2025 健康線 ${M.riskOk}%</strong>，庫存週轉健康。`
+       : `落在健康線 ${M.riskOk}% 與警戒線 ${M.riskWarn}% 之間，屬可接受但需持續觀察；若收入續跌而進貨不減，比率會快速逼近警戒線。`}`},
+    {cls:'', icon:'🧾', title:'新增：平台抽成正在吃掉毛利',
+     body:`v4 首次算出真實平台費用：全期 <strong>$${fmt(S.totFee)}</strong>，費用率由 2023 的 <strong>${S.annualShopee[0].feeRate}%</strong> 一路升到 ${CURY} H1 的 <strong class="red">${S.annualShopee[3].feeRate}%</strong>。這是<strong>淨利率的隱形逆風</strong>，即使營收持平，實收也會逐年變少。詳見「🧾 蝦皮費用透視」。`},
+    {cls:'', icon:'🎯', title:'結論：值得繼續經營，但要盯住趨勢',
+     body:`累積淨利 <strong>+$${fmt(totInc-totExp)}</strong>，2025 月均獲利 <strong>$${fmt((a25.inc-a25.exp)/12)}</strong>，${CURY} 迄今淨利 <strong>+$${fmt(a26.inc-a26.exp)}</strong>、淨利率 ${m26.toFixed(0)}%，仍是穩定副業收入。${dH1<0?'但收入同期衰退已是明確訊號，且平台抽成同步上升，建議先止血營收（拉單量）再談擴張進貨。':''}`}
+  ]);
+})();
+
+document.getElementById('dqBanner').innerHTML =
+  `📋 <strong>資料品質提醒</strong>：本專案另有 <strong>${M.fxRows} 筆非 TWD 紀錄</strong>（JPY／USD／CNY，多為以外幣卡支付的 1688／淘寶進貨），` +
+  `依年度平均匯率約當 <strong>$${fmt(M.fxExp)}</strong> 支出（其中進貨 $${fmt(M.fxBuy)}，2025 年就佔 $${fmt(M.fxBuyByYear['2025']||0)}）。` +
+  `依 D-002，米鹿儀表板維持純 TWD 口徑，故上述金額<strong>未計入</strong>本頁任何數字 —— 實際進貨成本與庫存風險比率會高於此處呈現。是否要一併納入，待 Milu 決定。`;
+
+document.getElementById('fx-status').textContent =
+  Object.entries(S.statusCount).map(([k,v])=>`${k} ${v}`).join('／');
+
+/* ==================== P2 三帳對帳 ==================== */
+builders.p2 = function(){
+  const R = S.recon, L = R.map(r=>ymLabel(r.m));
+  document.getElementById('r-shopee').textContent = '$'+fmt(S.covShopee);
+  document.getElementById('r-shopee-sub').textContent = `${S.totOrders.toLocaleString()} 張有效訂單（2023/06–2026/06）`;
+  document.getElementById('r-am').textContent = '$'+fmt(S.covAM);
+  document.getElementById('r-cov').textContent = S.covRate+'%';
+  document.getElementById('r-cov-sub').innerHTML = S.covRate>100
+    ? `蝦皮營收<strong>高於</strong>記帳收入 ${(S.covRate-100).toFixed(1)}%，因平台費在記帳中另列支出`
+    : `蝦皮營收僅涵蓋記帳收入 ${S.covRate}%，其餘為非蝦皮通路或運費收入`;
+  const feeBook = (M.cost.find(c=>c.item==='蝦皮分成')||{}).amt || 0;
+  const feeDiff = (S.totFee-feeBook)/feeBook*100;
+  const feeClose = Math.abs(feeDiff) <= 10;
+  document.getElementById('r-feechk').innerHTML = `<span class="${feeClose?'green':'yellow'}">±${Math.abs(feeDiff).toFixed(1)}%</span>`;
+  document.getElementById('r-feechk-sub').innerHTML =
+    `蝦皮報表 $${fmt(S.totFee)} vs 記帳 $${fmt(feeBook)}<br>${feeClose
+      ? '<strong class="green">✅ 量級一致，交叉驗證合理</strong>'
+      : '<strong class="yellow">⚠️ 差距偏大，建議回查</strong>'}`;
+
+  new Chart(document.getElementById('reconIncChart'),{
+    type:'bar',
+    data:{labels:L,datasets:[
+      {label:'AndroMoney 收入',data:R.map(r=>r.amInc),backgroundColor:'rgba(96,165,250,0.7)',borderRadius:3,order:2,yAxisID:'y'},
+      {label:'蝦皮營收（商品總價）',data:R.map(r=>r.shopee),backgroundColor:'rgba(192,132,252,0.7)',borderRadius:3,order:3,yAxisID:'y'},
+      {label:'差異%',data:R.map(r=>r.dInc),type:'line',borderColor:'#fbbf24',backgroundColor:'transparent',
+       borderWidth:1.8,pointRadius:2,tension:0.3,order:1,yAxisID:'y1'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.yAxisID==='y1'
+        ? ` 差異: ${ctx.raw===null?'—':pct(ctx.raw)}` : ` ${ctx.dataset.label}: $${fmt(ctx.raw)}`}}},
+      scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:13,font:{size:9}}},
+        y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}},
+        y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'差異%',font:{size:10}},ticks:{callback:v=>v+'%'}}}}
+  });
+
+  new Chart(document.getElementById('reconExpChart'),{
+    type:'bar',
+    data:{labels:L,datasets:[
+      {label:'AndroMoney 支出（全部類別）',data:R.map(r=>r.amExp),backgroundColor:'rgba(248,113,113,0.65)',borderRadius:3},
+      {label:'淘寶 Milu 進貨',data:R.map(r=>r.taobao),backgroundColor:'rgba(251,146,60,0.8)',borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`}}},
+      scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:13,font:{size:9}}},
+        y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+  });
+
+  const reasons = r => {
+    if (S.missingShopee.includes(r.m)) return '<span class="red">⚠️ 蝦皮月報表缺此月</span>，差異為資料缺口非實際落差';
+    if (r.dInc > 25) return '撥款時間差：當月成交、次月才入帳；或該月平台費／退款比重高';
+    if (r.dInc > 10) return '平台費用另計為支出，且部分訂單跨月撥款';
+    if (r.dInc < -25) return '入帳含<strong>前月遞延撥款</strong>或非蝦皮通路收入（如面交／其他平台）';
+    return '入帳含前月遞延撥款，或該月有運費／補助收入計入 AndroMoney';
+  };
+  const big = R.filter(r=>r.dInc!==null && Math.abs(r.dInc)>10);
+  document.getElementById('reconTable').innerHTML = big.map(r=>{
+    const d = r.shopee-r.amInc;
+    return `<tr><td><strong>${ymLabel(r.m)}</strong></td>
+      <td class="amt">$${fmt(r.amInc)}</td><td class="amt">$${fmt(r.shopee)}</td>
+      <td class="amt ${d>=0?'pos':'neg'}">${d>=0?'+':'−'}$${fmt(Math.abs(d))}</td>
+      <td class="amt ${r.dInc>=0?'pos':'neg'}">${pct(r.dInc)}</td>
+      <td style="font-size:0.78rem;color:#94a3b8">${reasons(r)}</td></tr>`;
+  }).join('');
+
+  mkInsights('reconInsights',[
+    {cls:'good', icon:'✅', title:'費用面：兩本獨立的帳量級一致',
+     body:`蝦皮月報表算出的三項費用 <strong>$${fmt(S.totFee)}</strong>，與 AndroMoney 記帳的「蝦皮分成」支出 <strong>$${fmt(feeBook)}</strong> 相差 <strong>${Math.abs(feeDiff).toFixed(1)}%</strong>（$${fmt(Math.abs(S.totFee-feeBook))}）。兩者來源完全獨立，量級一致代表<strong>記帳習慣可靠、報表整併沒有系統性錯誤</strong>。差額主要來自<strong>記帳只涵蓋 AndroMoney 有記到的月份與撥款時點</strong>，且部分費用可能被歸到其他子分類；若要更精確，可逐月比對蝦皮分成的記帳明細。`},
+    {cls:'', icon:'📐', title:'收入面：差異是口徑不同，不是記錯帳',
+     body:`蝦皮營收 $${fmt(S.covShopee)} 比 AndroMoney 收入 $${fmt(S.covAM)} 高 <strong>${(S.covRate-100).toFixed(1)}%</strong>。原因是<strong>商品總價是「買家付的」，AndroMoney 記的是「蝦皮撥給你的」</strong>，中間差的正是平台抽成。逐月差異大則多半是<strong>撥款跨月</strong>造成的時間差，長期會互相抵銷。`},
+    {cls:'good', icon:'🧩', title:'資料已補齊：全期 37 個月無缺口',
+     body:`原先缺漏的 <strong>2024/06、2024/07</strong> 蝦皮月報表已於 2026-07-21 補上，2023/06–2026/06 共 <strong>${S.reconMonths} 個月完整齊備</strong>，2024 年度營收因此由原估 $314,989 修正為 <strong>$${fmt(S.annualShopee[1].rev)}</strong>。淘寶 2026/05 無分頁經確認為<strong>該月確實無進貨</strong>，亦非缺漏。目前唯一的先天限制是 <strong>2021/12–2023/05 開店初期沒有訂單明細</strong>，該期間只能靠 AndroMoney 現金流回看。`}
+  ]);
+};
+
+/* ==================== P3 蝦皮費用透視 ==================== */
+builders.p3 = function(){
+  const A = S.annualShopee, MS = S.monthlyShopee;
+  const a26 = A.find(a=>a.y==='2026'), a23 = A.find(a=>a.y==='2023');
+  document.getElementById('feeAlert').innerHTML =
+    `⚠️ <strong>平台抽成三年上升逾 6 個百分點</strong>：費用率 ${a23.feeRate}%（2023）→ ${A[1].feeRate}%（2024）→ ${A[2].feeRate}%（2025）→ <strong>${a26.feeRate}%（2026 H1）</strong>。
+     換句話說，<strong>2026 每賣出 100 元商品，實際只拿得到 $${(100-a26.feeRate).toFixed(1)} 元</strong>，比 2023 的 $${(100-a23.feeRate).toFixed(1)} 元少了 $${(a26.feeRate-a23.feeRate).toFixed(1)}。
+     這是即使營收持平、淨利也會逐年變薄的結構性壓力。`;
+
+  document.getElementById('f-tot').textContent = '$'+fmt(S.totFee);
+  document.getElementById('f-tot-sub').textContent = `占全期商品總價 ${S.feeRate}%`;
+  document.getElementById('f-rate').textContent = S.feeRate+'%';
+  document.getElementById('f-rate26').textContent = a26.feeRate+'%';
+  document.getElementById('f-rate26-sub').innerHTML = `較 2023 <strong class="red">+${(a26.feeRate-a23.feeRate).toFixed(1)} 個百分點</strong>`;
+  document.getElementById('f-net').textContent = '$'+fmt(S.totRev-S.totFee);
+
+  new Chart(document.getElementById('feeRateChart'),{
+    type:'bar',
+    data:{labels:A.map(a=>a.y),datasets:[
+      {label:'費用率%',data:A.map(a=>a.feeRate),
+       backgroundColor:['rgba(74,222,128,0.7)','rgba(251,191,36,0.7)','rgba(251,146,60,0.8)','rgba(248,113,113,0.9)'],
+       borderRadius:5,order:2,yAxisID:'y'},
+      {label:'趨勢',data:A.map(a=>a.feeRate),type:'line',borderColor:'#c084fc',backgroundColor:'transparent',
+       borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#c084fc',tension:0.25,order:1,yAxisID:'y'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+        label:ctx=>` 費用率: ${ctx.raw}%`,
+        afterLabel:ctx=>{const a=A[ctx.dataIndex];return ` 營收 $${fmt(a.rev)}／費用 $${fmt(a.fee)}\n 每 100 元實拿 $${(100-a.feeRate).toFixed(1)}`;}}}},
+      scales:{x:{grid:{color:'#1e2533'}},
+        y:{grid:{color:'#1e2533'},beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+  });
+
+  document.getElementById('feeAnnualTable').innerHTML = A.map(a=>`
+    <tr><td><strong>${a.y}</strong>${a.y==='2023'?'<span class="muted" style="font-size:0.7rem"> (6–12月)</span>':a.y==='2026'?'<span class="muted" style="font-size:0.7rem"> (1–6月)</span>':''}</td>
+      <td class="amt pos">$${fmt(a.rev)}</td>
+      <td class="amt neg">$${fmt(a.fee)}</td>
+      <td class="amt ${a.feeRate>15?'neg':'yellow'}"><strong>${a.feeRate}%</strong></td>
+      <td class="amt">$${(100-a.feeRate).toFixed(1)}</td></tr>`).join('');
+
+  const feeColors = {f1:'#60a5fa', f2:'#f87171', f3:'#4ade80'};
+  const feeNames = {f1:'成交手續費', f2:'活動服務費', f3:'金流服務費'};
+  new Chart(document.getElementById('feeStackChart'),{
+    type:'bar',
+    data:{labels:A.map(a=>a.y),datasets:['f1','f2','f3'].map(k=>({
+      label:feeNames[k],data:A.map(a=>a[k]),backgroundColor:feeColors[k],borderWidth:0}))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`}}},
+      scales:{x:{stacked:true,grid:{color:'#1e2533'}},y:{stacked:true,grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+  });
+
+  new Chart(document.getElementById('feeCompChart'),{
+    type:'line',
+    data:{labels:A.map(a=>a.y),datasets:['f1','f2','f3'].map(k=>({
+      label:feeNames[k],data:A.map(a=>+(a[k]/a.rev*100).toFixed(2)),
+      borderColor:feeColors[k],backgroundColor:'transparent',borderWidth:2.2,pointRadius:4,tension:0.25}))},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11},boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.raw}% of 營收`}}},
+      scales:{x:{grid:{color:'#1e2533'}},y:{grid:{color:'#1e2533'},beginAtZero:true,ticks:{callback:v=>v+'%'}}}}
+  });
+
+  const netRate = MS.map(d=>d.rev? +((d.rev-d.fee)/d.rev*100).toFixed(2) : null);
+  const avgNet = 100 - S.feeRate;
+  new Chart(document.getElementById('netRateChart'),{
+    type:'line',
+    data:{labels:MS.map(d=>ymLabel(d.m)),datasets:[
+      {label:'月實收率%',data:netRate,borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,0.08)',
+       fill:true,borderWidth:2,pointRadius:2,tension:0.3,order:1},
+      {label:`全期平均 ${avgNet.toFixed(1)}%`,data:MS.map(()=>+avgNet.toFixed(2)),borderColor:'#fbbf24',
+       borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,order:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+        label:ctx=>` ${ctx.dataset.label}: ${ctx.raw}%`,
+        afterLabel:ctx=>{const d=MS[ctx.dataIndex];return ctx.datasetIndex===0?` 營收 $${fmt(d.rev)}／費用 $${fmt(d.fee)}`:'';}}}},
+      scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:13,font:{size:9}}},
+        y:{grid:{color:'#1e2533'},ticks:{callback:v=>v+'%'}}}}
+  });
+
+  const f2growth = (A[3].f2/A[3].rev)/(A[0].f2/A[0].rev);
+  mkInsights('feeInsights',[
+    {cls:'warn', icon:'📉', title:'活動服務費是主要漲幅來源',
+     body:`活動服務費佔營收比從 2023 的 <strong>${(A[0].f2/A[0].rev*100).toFixed(1)}%</strong> 升到 2026 H1 的 <strong class="red">${(A[3].f2/A[3].rev*100).toFixed(1)}%</strong>（約 <strong>${f2growth.toFixed(1)} 倍</strong>），是三項費用中漲最兇的。成交手續費從 ${(A[0].f1/A[0].rev*100).toFixed(1)}% 到 ${(A[3].f1/A[3].rev*100).toFixed(1)}%，金流費相對穩定。<strong>這代表你越來越依賴平台活動（免運／折扣）換取曝光</strong>。`},
+    {cls:'', icon:'💸', title:'費用上升的實際代價',
+     body:`若 2026 H1 仍維持 2023 的 ${A[0].feeRate}% 費用率，同樣的 $${fmt(A[3].rev)} 營收可以多留下 <strong class="green">$${fmt(A[3].rev*(A[3].feeRate-A[0].feeRate)/100)}</strong>。全期三項費用累計 <strong>$${fmt(S.totFee)}</strong>，相當於吃掉了 ${S.feeRate}% 的營收 —— 這筆錢比廣告投放（$${fmt((M.cost.find(c=>c.item==='廣告投放')||{}).amt||0)}）大得多，卻更容易被忽略。`},
+    {cls:'', icon:'🎯', title:'可以怎麼做',
+     body:`① <strong>檢視活動參與</strong>：不是每個免運／折扣活動都划算，把參加活動月份的實收率跟沒參加的比一比；② <strong>提高客單價</strong>：費用多為比例抽成，客單價上升不會等比增加固定成本；③ <strong>把費用率納入定價</strong>：定價時直接扣掉 ${a26.feeRate}% 再算毛利，避免帳面毛利虛胖。`}
+  ]);
+};
+
+/* ==================== P4 商品獲利與滯銷 ==================== */
+builders.p4 = function(){
+  const T = S.top, C = S.cats;
+  const t1=S.tier['T1貨號'], t2=S.tier['T2名稱'], t3=S.tier['T3未對應'], tt=t1+t2+t3;
+  const totGp = C.reduce((s,c)=>s+c.gp,0);
+
+  document.getElementById('coverBanner').innerHTML =
+    `📊 <strong>毛利對應覆蓋率（讀圖前必看）</strong>：商品毛利分三層計算 ——
+     <strong class="green">T1 貨號精算 $${fmt(t1)}（${(t1/tt*100).toFixed(1)}%）</strong>、
+     <strong class="green">T2 名稱精算 $${fmt(t2)}（${(t2/tt*100).toFixed(1)}%）</strong>、
+     <strong class="yellow">T3 類別估算 $${fmt(t3)}（${(t3/tt*100).toFixed(1)}%）</strong>。
+     蝦皮 <strong>2025/08 之後才在匯出報表帶貨號，且僅部分商品有填</strong>，因此逾八成銷售額只能用「該類別成本表毛利率中位數」推估。
+     <strong>本頁毛利數字適合看相對高低與排序，不宜當作精確損益</strong>。
+     💡 <strong>提升精準度的做法</strong>：在蝦皮賣家後台把每個商品規格的「貨號 (SKU)」補齊，之後匯出的報表就能直接對上成本表，T1 覆蓋率會大幅拉高。`;
+
+  document.getElementById('p-rev').textContent = '$'+fmt(tt);
+  document.getElementById('p-rev-sub').innerHTML =
+    `實際件數約 ${S.qtyAdj.toLocaleString()} 件　<span class="muted">（原始 ${S.qtyAll.toLocaleString()}，已扣$1單價品）</span>`;
+  document.getElementById('p-gp').textContent = '$'+fmt(totGp);
+  document.getElementById('p-gp-sub').innerHTML = `平均毛利率 ${(totGp/tt*100).toFixed(1)}%　<span class="yellow">（含估算）</span>`;
+  document.getElementById('p-top').textContent = '$'+fmt(T[0].rev);
+  document.getElementById('p-top-sub').innerHTML = `${T[0].name.slice(0,18)}…<br>占全店 ${(T[0].rev/tt*100).toFixed(1)}%`;
+  document.getElementById('p-dead').textContent = S.deadN + ' 個';
+  document.getElementById('p-dead-sub').innerHTML = `上架中 ${S.skuListed} 個 SKU 的 ${(S.deadN/S.skuListed*100).toFixed(0)}%<br><span class="muted">（受 T3 未對應影響可能高估）</span>`;
+
+  document.getElementById('topTable').innerHTML = T.map((p,i)=>`
+    <tr><td class="muted">${i+1}</td>
+      <td style="max-width:340px;font-size:0.8rem">${p.name}</td>
+      <td class="amt pos">$${fmt(p.rev)}</td>
+      <td style="min-width:110px"><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${(p.rev/T[0].rev*100).toFixed(1)}%;background:#c084fc"></div></div>
+        <span style="font-size:0.72rem;color:#64748b;min-width:34px">${(p.rev/tt*100).toFixed(1)}%</span></div></td>
+      <td class="amt">${p.qty.toLocaleString()}</td>
+      <td class="amt purple">$${fmt(p.gp)}</td>
+      <td class="amt ${p.gm>=35?'pos':p.gm<25?'neg':''}">${p.gm}%</td>
+      <td><span class="tier-badge ${p.tier==='T1/T2 精算'?'tier-exact':'tier-est'}">${p.tier}</span></td></tr>`).join('');
+
+  const catColors=['#c084fc','#60a5fa','#4ade80','#fbbf24','#f87171','#fb923c','#e879f9','#38bdf8'];
+  new Chart(document.getElementById('catPie'),{
+    type:'doughnut',
+    data:{labels:C.map(c=>c.cat),datasets:[{data:C.map(c=>c.rev),
+      backgroundColor:catColors,borderWidth:1,borderColor:'#0d1117'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12,padding:8}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.label}: $${fmt(ctx.raw)} (${(ctx.raw/tt*100).toFixed(1)}%)`}}}}
+  });
+
+  new Chart(document.getElementById('catGpChart'),{
+    type:'bar',
+    data:{labels:C.map(c=>c.cat),datasets:[
+      {label:'毛利貢獻',data:C.map(c=>c.gp),backgroundColor:catColors,borderRadius:4,order:2,yAxisID:'y'},
+      {label:'毛利率%',data:C.map(c=>c.gm),type:'line',borderColor:'#fbbf24',backgroundColor:'transparent',
+       borderWidth:2,pointRadius:4,tension:0.25,order:1,yAxisID:'y1'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+        label:ctx=>ctx.dataset.yAxisID==='y1'?` 毛利率: ${ctx.raw}%`:` 毛利: $${fmt(ctx.raw)}`,
+        afterLabel:ctx=>ctx.datasetIndex===0?` 營收 $${fmt(C[ctx.dataIndex].rev)}`:''}}},
+      scales:{x:{grid:{color:'#1e2533'},ticks:{font:{size:10}}},
+        y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}},
+        y1:{position:'right',grid:{drawOnChartArea:false},beginAtZero:true,max:50,ticks:{callback:v=>v+'%'}}}}
+  });
+
+  document.getElementById('deadTitle').textContent =
+    `滯銷 SKU：共 ${S.deadN} 個（列出單件成本最高的前 ${S.dead.length} 個）`;
+  document.getElementById('deadTable').innerHTML = S.dead.map(d=>`
+    <tr><td style="font-size:0.76rem;color:#64748b">${d.code}</td>
+      <td style="font-size:0.8rem">${d.name}</td>
+      <td><span class="muted" style="font-size:0.76rem">${d.cat}</span></td>
+      <td class="amt neg">$${d.cost}</td>
+      <td class="amt">$${fmt(d.price)}</td>
+      <td class="amt">${d.gm}%</td></tr>`).join('');
+
+  const top3 = C.slice(0,3);
+  const worstGm = [...C].sort((a,b)=>a.gm-b.gm)[0];
+  mkInsights('prodInsights',[
+    {cls:'', icon:'🥇', title:'三大主力品類撐起營收',
+     body:`<strong>${top3.map(c=>c.cat).join('、')}</strong> 合計 <strong>$${fmt(top3.reduce((s,c)=>s+c.rev,0))}</strong>，占全店 <strong>${(top3.reduce((s,c)=>s+c.rev,0)/tt*100).toFixed(0)}%</strong>。單品冠軍是<strong>${T[0].name.slice(0,20)}</strong>（$${fmt(T[0].rev)}，${T[0].qty.toLocaleString()} 件），一項就占全店 ${(T[0].rev/tt*100).toFixed(1)}%，金屬書籤是明確的招牌商品。
+     <span class="muted">（註：TOP20 中「口袋精靈」為 $1 單價的客製報價連結，件數欄不代表實際件數）</span>`},
+    {cls:'warn', icon:'⚖️', title:`${worstGm.cat}：走量但不賺錢`,
+     body:`<strong>${worstGm.cat}</strong>營收 $${fmt(worstGm.rev)}（排第 ${C.findIndex(c=>c.cat===worstGm.cat)+1}），但毛利率僅 <strong class="red">${worstGm.gm}%</strong>，明顯低於其他品類的 35% 上下。它帶來訂單量與回購入口，卻幾乎不貢獻利潤。<strong>建議當成引流品操作</strong>：搭配高毛利商品組合銷售，而不是單獨推廣。`},
+    {cls:'', icon:'📦', title:'滯銷清單怎麼用',
+     body:`上架中 ${S.skuListed} 個 SKU 裡，有 <strong>${S.deadN} 個</strong>在全期銷售明細中對不到任何一筆 T1／T2 銷售。但因 T3 未對應占 ${(t3/tt*100).toFixed(0)}%，<strong>這份清單會高估</strong>。正確用法是當成<strong>優先盤點名單</strong>：拿去對照實體庫存，確認真的沒動的再處理。⚠️ 成本表<strong>沒有庫存數量欄</strong>，所以無法算出可釋放資金 —— 若要這個數字，需要先補一次庫存盤點。`}
+  ]);
+};
+
+/* ==================== P5 客群與衰退診斷 ==================== */
+builders.p5 = function(){
+  const MS = S.monthlyShopee, L = MS.map(d=>ymLabel(d.m));
+  const y = m => m.m.slice(0,4);
+
+  document.getElementById('c-orders').textContent = S.totOrders.toLocaleString();
+  document.getElementById('c-orders-sub').textContent = '2023/06–2026/06 共 '+S.reconMonths+' 個月（齊備）';
+  document.getElementById('c-aov').textContent = '$'+S.aovAll;
+  document.getElementById('c-aov-sub').innerHTML = `2023 $${fmt(S.annualAov['2023'])} → 2026 $${fmt(S.annualAov['2026'])}　<strong class="green">↑ 上升</strong>`;
+  document.getElementById('c-buyers').textContent = S.buyers.toLocaleString();
+  document.getElementById('c-buyers-sub').textContent = `平均每人 ${(S.totOrders/S.buyers).toFixed(2)} 單`;
+  document.getElementById('c-repeat').textContent = S.repeatRate+'%';
+  document.getElementById('c-repeat-sub').innerHTML = `${S.repeat} 人回購，貢獻營收 <strong>${S.repeatRevRate}%</strong>`;
+
+  // 衰退診斷 banner
+  const j25 = MS.find(d=>d.m==='202506'), j26 = MS.find(d=>d.m==='202606');
+  const h25 = MS.filter(d=>d.m>='202501'&&d.m<='202506'), h26 = MS.filter(d=>d.m>='202601'&&d.m<='202606');
+  const sum = (a,k)=>a.reduce((s,d)=>s+d[k],0);
+  const n25=sum(h25,'n'), n26=sum(h26,'n'), r25=sum(h25,'rev'), r26=sum(h26,'rev');
+  const aov25=r25/n25, aov26=r26/n26;
+  document.getElementById('declineAlert').innerHTML =
+    `🔍 <strong>衰退診斷結論：這是「量」的問題，不是「價」的問題</strong>。
+     2026 上半年訂單 <strong>${n26} 單</strong>（2025 同期 ${n25} 單，<strong class="red">${pct((n26-n25)/n25*100)}</strong>），
+     但客單價 <strong class="green">$${aov26.toFixed(0)}</strong>（2025 同期 $${aov25.toFixed(0)}，<strong class="green">${pct((aov26-aov25)/aov25*100)}</strong>）—— 訂單量掉了三成，客單價卻沒掉。
+     拉長看更明顯：客單價 2023 $${fmt(S.annualAov['2023'])} → 2026 $${fmt(S.annualAov['2026'])}（<strong class="green">${pct((S.annualAov['2026']-S.annualAov['2023'])/S.annualAov['2023']*100)}</strong>）。
+     <strong>問題出在進站流量與曝光，不是定價。</strong>
+     <span style="color:#94a3b8">（註：單看 2026/06 ${j26.n} 單 / 客單價 $${j26.aov} vs 2025/06 ${j25.n} 單 / 客單價 $${j25.aov}，該月客單價其實低於去年同月 —— 2025/06 有高單價檔期墊高基期，屬單月波動，不影響上述半年結論。）</span>`;
+
+  // 客單價 + 年度均線
+  const yearsAov = Object.keys(S.annualAov).sort();
+  new Chart(document.getElementById('aovChart'),{
+    type:'line',
+    data:{labels:L,datasets:[
+      {label:'月客單價',data:MS.map(d=>d.aov),borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,0.08)',
+       fill:true,borderWidth:2,pointRadius:2.5,tension:0.3,order:1},
+      {label:'年度平均客單價',data:MS.map(d=>+S.annualAov[y(d)].toFixed(1)),borderColor:'#fbbf24',
+       borderWidth:1.8,borderDash:[6,4],pointRadius:0,fill:false,tension:0,order:2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+        label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`,
+        afterLabel:ctx=>{const d=MS[ctx.dataIndex];return ctx.datasetIndex===0?` ${d.n} 單／營收 $${fmt(d.rev)}`:'';}}}},
+      scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:13,font:{size:9}}},
+        y:{grid:{color:'#1e2533'},title:{display:true,text:'客單價 (TWD)',font:{size:10}},ticks:{callback:v=>'$'+v}}}}
+  });
+
+  // 訂單量 + YoY
+  const byM = Object.fromEntries(MS.map(d=>[d.m,d]));
+  const prevM = m => { const p=(+m.slice(0,4)-1)+m.slice(4); return byM[p]; };
+  const yoy = MS.map(d=>{ const p=prevM(d.m);
+    if(!p || !p.n || S.missingShopee.includes(p.m) || S.missingShopee.includes(d.m)) return null;
+    return +(((d.n-p.n)/p.n)*100).toFixed(1); });
+  new Chart(document.getElementById('orderYoYChart'),{
+    type:'bar',
+    data:{labels:L,datasets:[
+      {label:'月訂單數',data:MS.map(d=>d.n),
+       backgroundColor:MS.map((d,i)=>yoy[i]!==null&&yoy[i]<0?'rgba(248,113,113,0.8)':'rgba(96,165,250,0.7)'),
+       borderRadius:3,order:2,yAxisID:'y'},
+      {label:'同月 YoY %',data:yoy,type:'line',borderColor:'#fbbf24',backgroundColor:'transparent',
+       borderWidth:1.8,pointRadius:2.5,tension:0.3,spanGaps:false,order:1,yAxisID:'y1'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+        label:ctx=>ctx.dataset.yAxisID==='y1'
+          ? ` YoY: ${ctx.raw===null?'—（缺報表月，不判讀）':pct(ctx.raw)}`
+          : ` 訂單: ${ctx.raw} 單`,
+        afterLabel:ctx=>{const d=MS[ctx.dataIndex];return ctx.datasetIndex===0?` 營收 $${fmt(d.rev)}／客單價 $${d.aov}`:'';}}}},
+      scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:13,font:{size:9}}},
+        y:{grid:{color:'#1e2533'},beginAtZero:true,title:{display:true,text:'訂單數',font:{size:10}}},
+        y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'YoY %',font:{size:10}},ticks:{callback:v=>v+'%'}}}}
+  });
+
+  // 回購結構
+  const oneN = S.buyers-S.repeat, oneRev = S.totRev-S.repeatRev;
+  new Chart(document.getElementById('repeatChart'),{
+    type:'bar',
+    data:{labels:['買家人數','營收貢獻'],datasets:[
+      {label:'單次購買買家',data:[oneN/S.buyers*100, oneRev/S.totRev*100],backgroundColor:'rgba(100,116,139,0.75)',borderRadius:4},
+      {label:'回購買家（≥2 單）',data:[S.repeat/S.buyers*100, S.repeatRevRate],backgroundColor:'rgba(192,132,252,0.85)',borderRadius:4}
+    ]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11},boxWidth:10}},tooltip:{callbacks:{
+        label:ctx=>` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`}}},
+      scales:{x:{stacked:true,grid:{color:'#1e2533'},max:100,ticks:{callback:v=>v+'%'}},
+        y:{stacked:true,grid:{color:'#1e2533'}}}}
+  });
+
+  const lift = (S.repeatRevRate/ (S.repeat/S.buyers*100));
+  document.getElementById('repeatTable').innerHTML = [
+    ['不重複買家', S.buyers.toLocaleString()+' 人', '全期下過至少一張有效訂單'],
+    ['回購買家（≥2 單）', S.repeat.toLocaleString()+' 人', '同一買家帳號有 2 張以上有效訂單'],
+    ['回購率', `<strong class="yellow">${S.repeatRate}%</strong>`, '回購買家 ÷ 不重複買家'],
+    ['回購買家營收', '$'+fmt(S.repeatRev), '這群人貢獻的商品總價'],
+    ['回購營收占比', `<strong class="purple">${S.repeatRevRate}%</strong>`, `以 ${S.repeatRate}% 的人貢獻 ${S.repeatRevRate}% 營收`],
+    ['價值倍數', `<strong class="green">${lift.toFixed(1)}×</strong>`, '回購買家的人均價值是單次買家的倍數'],
+    ['平均每人訂單數', (S.totOrders/S.buyers).toFixed(2)+' 單', '全期有效訂單 ÷ 不重複買家'],
+  ].map(r=>`<tr><td>${r[0]}</td><td class="amt">${r[1]}</td><td style="font-size:0.77rem;color:#64748b">${r[2]}</td></tr>`).join('');
+
+  // 品類衰退拆解
+  const CC = S.catCompare;
+  new Chart(document.getElementById('catCompareChart'),{
+    type:'bar',
+    data:{labels:CC.map(c=>c.cat),datasets:[
+      {label:'2025 上半年',data:CC.map(c=>c.y25),backgroundColor:'rgba(96,165,250,0.75)',borderRadius:3},
+      {label:'2026 上半年',data:CC.map(c=>c.y26),backgroundColor:CC.map(c=>c.d<0?'rgba(248,113,113,0.85)':'rgba(74,222,128,0.8)'),borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{
+        label:ctx=>` ${ctx.dataset.label}: $${fmt(ctx.raw)}`,
+        afterLabel:ctx=>{const c=CC[ctx.dataIndex];return ctx.datasetIndex===1
+          ? ` 增減 ${c.d>=0?'+':'−'}$${fmt(Math.abs(c.d))}（${c.y25?pct(c.d/c.y25*100):'—'}）`:'';}}}},
+      scales:{x:{grid:{color:'#1e2533'},ticks:{font:{size:10}}},
+        y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmtK(v)}}}}
+  });
+
+  const worst = CC[0], worst2 = CC[1];
+  const totalDrop = CC.filter(c=>c.d<0).reduce((s,c)=>s+c.d,0);
+  mkInsights('custInsights',[
+    {cls:'good', icon:'💰', title:'客單價是好消息：定價策略成功',
+     body:`客單價從 2023 的 <strong>$${fmt(S.annualAov['2023'])}</strong> 一路升到 2026 的 <strong>$${fmt(S.annualAov['2026'])}</strong>（<strong class="green">${pct((S.annualAov['2026']-S.annualAov['2023'])/S.annualAov['2023']*100)}</strong>）。代表商品組合往高單價走、或加購搭售有效。<strong>這條線不需要修，要修的是訂單量。</strong>`},
+    {cls:'warn', icon:'📉', title:`衰退主力：${worst.cat}`,
+     body:`2026 上半年 vs 2025 同期，衰退最多的是 <strong>${worst.cat}</strong>（$${fmt(worst.y25)} → $${fmt(worst.y26)}，<strong class="red">${pct(worst.d/worst.y25*100)}</strong>，少了 $${fmt(Math.abs(worst.d))}），其次是 <strong>${worst2.cat}</strong>（少了 $${fmt(Math.abs(worst2.d))}）。合計衰退品類共少了 <strong>$${fmt(Math.abs(totalDrop))}</strong>。<strong>${worst.cat}正是全店營收占比最高的品類</strong>，招牌商品失去動能是這波衰退的核心。`},
+    {cls:'', icon:'🔁', title:`回購買家是被低估的資產`,
+     body:`只有 <strong>${S.repeatRate}%</strong> 的買家回購，卻貢獻了 <strong>${S.repeatRevRate}%</strong> 的營收 —— 人均價值是單次買家的 <strong>${lift.toFixed(1)} 倍</strong>。全期 ${S.buyers.toLocaleString()} 位買家中有 ${(S.buyers-S.repeat).toLocaleString()} 人只買過一次。<strong>在訂單量下滑的當下，把單次買家轉成回購買家，比拉新客便宜得多</strong>：出貨小卡、回購折扣碼、新品通知都是低成本做法。`}
+  ]);
+};
+</script>
+</body>
+</html>

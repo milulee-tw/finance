@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AndroMoney 收支趨勢分析 v3</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'PingFang TC', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%); border-bottom: 1px solid #2d3748; padding: 24px 32px; display:flex; justify-content:space-between; align-items:flex-start; }
+  .header h1 { font-size: 1.6rem; font-weight: 700; color: #f0c060; letter-spacing: 0.02em; }
+  .header p { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+  .header-date { font-size:0.75rem; color:#64748b; margin-top:6px; text-align:right; }
+  .badge-v3 { display:inline-block; font-size:0.68rem; padding:2px 7px; border-radius:4px; background:#3b2f10; color:#f0c060; margin-left:8px; vertical-align:middle; letter-spacing:0.06em; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 28px; }
+  @media (max-width: 1180px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 760px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .chart-row.two-col, .chart-row.three-two { grid-template-columns: 1fr !important; } }
+  .kpi-card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 18px; }
+  .kpi-card .label { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .kpi-card .value { font-size: 1.5rem; font-weight: 700; }
+  .kpi-card .sub { font-size: 0.76rem; color: #94a3b8; margin-top: 4px; line-height:1.5; }
+  .kpi-card.green .value { color: #4ade80; }
+  .kpi-card.red .value { color: #f87171; }
+  .kpi-card.blue .value { color: #60a5fa; }
+  .kpi-card.yellow .value { color: #f0c060; }
+  .kpi-card.accent { border-color:#3f4a63; background:linear-gradient(160deg,#1a1f2e 0%,#1d2436 100%); }
+  .up { color:#f87171; } .down { color:#4ade80; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #2d3748; flex-wrap:wrap; }
+  .tab { padding: 10px 20px; font-size: 0.88rem; cursor: pointer; border-bottom: 2px solid transparent; color: #94a3b8; transition: all 0.2s; }
+  .tab.active { color: #f0c060; border-bottom-color: #f0c060; }
+  .tab:hover:not(.active) { color: #cbd5e1; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .chart-row { display: grid; gap: 20px; margin-bottom: 20px; }
+  .chart-row.two-col { grid-template-columns: 1fr 1fr; }
+  .chart-row.three-two { grid-template-columns: 3fr 2fr; }
+
+  .chart-card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 24px; }
+  .chart-card h3 { font-size: 0.9rem; font-weight: 600; color: #cbd5e1; margin-bottom: 16px; }
+  .chart-card .chart-wrap { position: relative; }
+
+  .note { font-size: 0.75rem; color: #64748b; margin-top: 8px; font-style: italic; line-height:1.6; }
+  .purpose { font-size:0.78rem; color:#94a3b8; background:#161b27; border-left:3px solid #f0c060; padding:10px 14px; border-radius:0 6px 6px 0; margin-bottom:16px; line-height:1.6; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; padding: 8px 12px; color: #94a3b8; font-weight: 500; border-bottom: 1px solid #2d3748; font-size: 0.75rem; text-transform: uppercase; }
+  td { padding: 9px 12px; border-bottom: 1px solid #1e2533; }
+  tr:last-child td { border-bottom: none; }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .income { color: #4ade80; } .expense { color: #f87171; } .surplus { color: #60a5fa; }
+  .muted { color:#64748b; font-size:0.78rem; }
+  .bar-cell { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { flex: 1; height: 6px; background: #1e2533; border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #94a3b8; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+  .table-scroll { overflow-x:auto; }
+
+  .footer { max-width:1400px; margin:0 auto; padding: 8px 32px 40px; font-size:0.75rem; color:#64748b; line-height:1.8; }
+  .footer strong { color:#94a3b8; }
+  .warn-box { background:#2a1c1c; border:1px solid #4a2d2d; color:#fca5a5; border-radius:8px; padding:12px 16px; font-size:0.8rem; line-height:1.6; margin-bottom:18px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>💰 收支趨勢分析<span class="badge-v3">V3</span></h1>
+    <p>AndroMoney 資料 · 2015/10 – 2026/07 · 共 19,032 筆（含外幣換算）</p>
+  </div>
+  <div class="header-date">資料更新：2026/07/20<br>匯出檔日期 20260720</div>
+</div>
+
+<div class="container">
+  <div class="kpi-grid">
+    <div class="kpi-card yellow">
+      <div class="label">近12個月支出</div>
+      <div class="value" id="kpi-exp12">--</div>
+      <div class="sub" id="kpi-range">--</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="label">近12個月收入</div>
+      <div class="value" id="kpi-inc12">--</div>
+      <div class="sub" id="kpi-range2">--</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="label">近12個月結餘</div>
+      <div class="value" id="kpi-sur12">--</div>
+      <div class="sub">收入 - 支出</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="label">月均支出（近12月）</div>
+      <div class="value" id="kpi-avg12">--</div>
+      <div class="sub">平均每月</div>
+    </div>
+    <div class="kpi-card accent">
+      <div class="label">YoY 同期比較（支出）</div>
+      <div class="value" id="kpi-yoy">--</div>
+      <div class="sub" id="kpi-yoy-sub">--</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('trend',this)">月度趨勢</div>
+    <div class="tab" onclick="switchTab('annual',this)">年度概覽</div>
+    <div class="tab" onclick="switchTab('category',this)">分類分析</div>
+    <div class="tab" onclick="switchTab('income',this)">收入分析</div>
+    <div class="tab" onclick="switchTab('project',this)">專案分析</div>
+  </div>
+
+  <!-- ============ 月度趨勢 ============ -->
+  <div class="tab-content active" id="tab-trend">
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>月度收支走勢（2022–2026）</h3>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>收入</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f87171"></div>支出</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>結餘</div>
+        </div>
+        <div class="chart-wrap" style="height:320px"><canvas id="monthlyChart"></canvas></div>
+        <p class="note">* 已排除轉帳、信用卡繳款等非實際收支；部門經費／公司代墊（任職公司往來款）亦已排除；2026/07 為部分月份（記帳至 7/20）<br>
+        * v3 起外幣消費已依年度平均匯率換算納入，出國月份支出較 v2 上修</p>
+      </div>
+    </div>
+    <div class="chart-row two-col">
+      <div class="chart-card">
+        <h3>月支出滾動均線（近24月）</h3>
+        <div class="chart-wrap" style="height:240px"><canvas id="rollingChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>2026 年月收支</h3>
+        <div class="chart-wrap" style="height:240px"><canvas id="y2026Chart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>🔍 高峰月份解釋（近24個月）</h3>
+        <p class="purpose">判定標準：當月支出 &gt; 近 36 個月平均（<span id="pk-mean"></span>）＋ 1 個標準差（<span id="pk-sd"></span>）＝ <strong id="pk-th"></strong>。以下列出達標月份與當月支出 TOP 3 子分類。</p>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>月份</th><th class="amt">當月總支出</th><th>TOP 1</th><th>TOP 2</th><th>TOP 3</th></tr></thead>
+          <tbody id="peakTable"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>📌 固定支出追蹤（近24個月）</h3>
+        <p class="purpose">對應 KPI「檢視是否有過多的額外支出」——固定支出是最需要定期盤點的部分。固定支出定義（依子分類）：學雜費、保險費、管理費、訂閱服務、阿波生活費、照顧津貼。</p>
+        <div class="chart-wrap" style="height:300px"><canvas id="fixedChart"></canvas></div>
+        <p class="note">* 長條為各項固定支出金額（堆疊），折線（右軸）為固定支出佔當月總支出百分比</p>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>訂閱服務明細 TOP 10（2025 全年 vs 2026 迄今）</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>服務 / 商家</th><th class="amt">2025 年繳金額</th><th class="amt">2026 迄今</th><th style="width:32%">2025 佔比</th></tr></thead>
+          <tbody id="subTable"></tbody>
+        </table>
+        </div>
+        <p class="note">* 以「商家(公司)」欄分組，無商家則以備註分組；名稱大小寫／空白已合併。2025 訂閱服務合計 <strong id="sub25tot"></strong>、2026 迄今 <strong id="sub26tot"></strong>（含外幣換算）</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 年度概覽 ============ -->
+  <div class="tab-content" id="tab-annual">
+    <div class="chart-row three-two">
+      <div class="chart-card">
+        <h3>歷年收支比較（2018–2026）</h3>
+        <div class="chart-wrap" style="height:300px"><canvas id="annualChart"></canvas></div>
+        <p class="note">* 2017 年因包含房貸一次性支付（約 1,078 萬）排除於圖表外；2026 截至 7/20</p>
+      </div>
+      <div class="chart-card">
+        <h3>年度詳細數據</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>年度</th><th class="amt">收入</th><th class="amt">支出</th><th class="amt">結餘</th></tr></thead>
+          <tbody id="annualTable"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 分類分析 ============ -->
+  <div class="tab-content" id="tab-category">
+    <div class="chart-row two-col">
+      <div class="chart-card">
+        <h3>支出分類佔比（2022–2026）</h3>
+        <div class="chart-wrap" style="height:300px"><canvas id="catPieChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>各分類年度變化（2022–2025）</h3>
+        <div class="chart-wrap" style="height:300px"><canvas id="catStackChart"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>TOP 15 子分類（2022–2026 支出）</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>子分類</th><th class="amt">總計（TWD）</th><th style="width:40%">佔比</th></tr></thead>
+          <tbody id="subcatTable"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 收入分析 ============ -->
+  <div class="tab-content" id="tab-income">
+    <div class="chart-row two-col">
+      <div class="chart-card">
+        <h3>收入來源佔比（2022 起累計）</h3>
+        <div class="chart-wrap" style="height:300px"><canvas id="incDonut"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>年度收入結構（2022–2026）</h3>
+        <div class="chart-wrap" style="height:300px"><canvas id="incStack"></canvas></div>
+        <p class="note">* 2026 截至 7/20，為部分年度</p>
+      </div>
+    </div>
+    <div class="chart-row two-col">
+      <div class="chart-card">
+        <h3>投資收入細項（全期間累計）</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>項目</th><th class="amt">累計金額（TWD）</th><th style="width:36%">佔投資收入比</th></tr></thead>
+          <tbody id="investTable"></tbody>
+        </table>
+        </div>
+      </div>
+      <div class="chart-card">
+        <h3>主要收入來源（全期間累計）</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>來源</th><th class="amt">累計金額（TWD）</th></tr></thead>
+          <tbody id="incAllTable"></tbody>
+        </table>
+        </div>
+        <p class="note">* 「禮金」以 2016 婚禮年度為大宗，故 2022 起累計佔比明顯低於全期間</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 專案分析 ============ -->
+  <div class="tab-content" id="tab-project">
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>「育兒」專案逐年支出＋累計</h3>
+        <div class="chart-wrap" style="height:280px"><canvas id="babyChart"></canvas></div>
+        <div id="babyInsight" class="purpose" style="margin-top:14px;margin-bottom:0"></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>旅遊／出差專案每次總花費 TOP 12</h3>
+        <div class="chart-wrap" style="height:380px"><canvas id="tripChart"></canvas></div>
+        <p class="note">* 一個專案 = 一趟行程，含行前訂票／訂房等前置花費，故期間可能早於出發月份<br>
+        * 出差專案已扣除「部門經費／公司代墊」（公司負擔部分），故金額為個人實際支出</p>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>專案明細</h3>
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>專案</th><th>期間</th><th class="amt">總支出（TWD）</th><th class="amt">筆數</th></tr></thead>
+          <tbody id="projTable"></tbody>
+        </table>
+        </div>
+        <p class="note">* 已排除「MiluCollection米鹿私藏」（另有獨立儀表板）與「部門費用」（任職公司往來款）<br>
+        * <strong>林口買房修繕</strong>（2017–2019 累計 <span id="houseAmt"></span>）屬一次性置產，列於表格但排除於上方圖表之外</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <strong>計算規則</strong>：排除 SYSTEM 期初金額、轉帳（轉出／轉入同時有值）、信用卡繳款、部門經費（公司代墊／部門支出收入，屬任職公司往來款）。支出＝僅「付款(轉出)」有值；收入＝僅「收款(轉入)」有值。米鹿私藏收支包含在個人整體收支內（另有獨立儀表板）。<br>
+  <strong>外幣</strong>：外幣消費已依年度平均匯率換算納入（匯率表內建於檔案中，可調整），與 v2 純 TWD 版本數字略有差異。本次共 <span id="fxCount"></span> 筆非 TWD 紀錄納入統計。<br>
+  <strong>資料</strong>：匯出檔 20260720，原始 19,032 筆，套用排除規則後 <span id="keptRows"></span> 筆進入統計。
+</div>
+
+<script>
+const FX_RATES = {
+  // TWD / 1 單位外幣。日後要修正匯率只改這裡。key 為年度，default 為未列年度共用值。
+  TWD: { default: 1.0 },
+  USD: { default: 30.0, 2022: 29.8, 2023: 31.2, 2024: 32.1, 2025: 32.0, 2026: 31.0 },
+  JPY: { default: 0.27, 2022: 0.227, 2023: 0.222, 2024: 0.212, 2025: 0.215, 2026: 0.21 },
+  KRW: { default: 0.025 }, CNY: { default: 4.45 }, HKD: { default: 4.0 },
+  PHP: { default: 0.55 }, MYR: { default: 7.0 }, EUR: { default: 33.5 }, TRY: { default: 1.0 }
+};
+
+const D = {"exportDate":"20260720","lastDate":"20260720","totalRows":19032,"fxCount":578,"keptRows":15747,"monthly":{"202201":{"exp":184863,"inc":822781},"202202":{"exp":98014,"inc":205893},"202203":{"exp":238445,"inc":131177},"202204":{"exp":234963,"inc":142131},"202205":{"exp":239433,"inc":138961},"202206":{"exp":126738,"inc":382932},"202207":{"exp":264410,"inc":165623},"202208":{"exp":178570,"inc":1691072},"202209":{"exp":194430,"inc":171012},"202210":{"exp":139271,"inc":166191},"202211":{"exp":81941,"inc":158332},"202212":{"exp":136534,"inc":222594},"202301":{"exp":201828,"inc":694768},"202302":{"exp":166464,"inc":127159},"202303":{"exp":95690,"inc":262382},"202304":{"exp":139899,"inc":65302},"202305":{"exp":357346,"inc":131001},"202306":{"exp":200192,"inc":350461},"202307":{"exp":260354,"inc":387702},"202308":{"exp":216677,"inc":1596624},"202309":{"exp":155313,"inc":125338},"202310":{"exp":156160,"inc":94371},"202311":{"exp":162670,"inc":118296},"202312":{"exp":175987,"inc":106649},"202401":{"exp":104943,"inc":207537},"202402":{"exp":278895,"inc":729434},"202403":{"exp":117266,"inc":95577},"202404":{"exp":348668,"inc":122962},"202405":{"exp":470502,"inc":127562},"202406":{"exp":186843,"inc":167984},"202407":{"exp":119014,"inc":217276},"202408":{"exp":291678,"inc":1948749},"202409":{"exp":310360,"inc":187688},"202410":{"exp":276473,"inc":154830},"202411":{"exp":118996,"inc":448001},"202412":{"exp":375128,"inc":273800},"202501":{"exp":150074,"inc":331820},"202502":{"exp":202604,"inc":254261},"202503":{"exp":200724,"inc":356419},"202504":{"exp":245534,"inc":235913},"202505":{"exp":298787,"inc":271932},"202506":{"exp":508050,"inc":261787},"202507":{"exp":286125,"inc":265928},"202508":{"exp":220970,"inc":218073},"202509":{"exp":85098,"inc":542823},"202510":{"exp":166583,"inc":290491},"202511":{"exp":105167,"inc":285531},"202512":{"exp":140600,"inc":390796},"202601":{"exp":482031,"inc":73949},"202602":{"exp":186749,"inc":352487},"202603":{"exp":225949,"inc":332027},"202604":{"exp":183403,"inc":219051},"202605":{"exp":253433,"inc":208778},"202606":{"exp":81228,"inc":215059},"202607":{"exp":379431,"inc":230795}},"monthlyTwd":{"202201":{"exp":184863,"inc":821970},"202202":{"exp":98014,"inc":205592},"202203":{"exp":178845,"inc":131177},"202204":{"exp":231547,"inc":142131},"202205":{"exp":233166,"inc":138951},"202206":{"exp":115098,"inc":382769},"202207":{"exp":253584,"inc":165419},"202208":{"exp":174715,"inc":1690693},"202209":{"exp":180899,"inc":171012},"202210":{"exp":134745,"inc":166152},"202211":{"exp":81941,"inc":157933},"202212":{"exp":136534,"inc":163957},"202301":{"exp":201431,"inc":694768},"202302":{"exp":165840,"inc":127113},"202303":{"exp":94137,"inc":259994},"202304":{"exp":139266,"inc":65302},"202305":{"exp":348338,"inc":131001},"202306":{"exp":199558,"inc":349722},"202307":{"exp":260354,"inc":387702},"202308":{"exp":211835,"inc":1596624},"202309":{"exp":155246,"inc":125338},"202310":{"exp":154582,"inc":94371},"202311":{"exp":151818,"inc":118296},"202312":{"exp":175658,"inc":106649},"202401":{"exp":104943,"inc":207537},"202402":{"exp":278454,"inc":727685},"202403":{"exp":117266,"inc":95577},"202404":{"exp":341072,"inc":122962},"202405":{"exp":470502,"inc":127562},"202406":{"exp":186843,"inc":167984},"202407":{"exp":118869,"inc":217276},"202408":{"exp":291678,"inc":1948749},"202409":{"exp":300654,"inc":185833},"202410":{"exp":244949,"inc":150529},"202411":{"exp":108247,"inc":447810},"202412":{"exp":360670,"inc":271955},"202501":{"exp":148874,"inc":325646},"202502":{"exp":194231,"inc":254041},"202503":{"exp":177030,"inc":324114},"202504":{"exp":202105,"inc":234344},"202505":{"exp":288615,"inc":271618},"202506":{"exp":499489,"inc":261146},"202507":{"exp":278501,"inc":263549},"202508":{"exp":210162,"inc":217948},"202509":{"exp":78288,"inc":542695},"202510":{"exp":159694,"inc":290491},"202511":{"exp":96424,"inc":284806},"202512":{"exp":127110,"inc":390688},"202601":{"exp":475108,"inc":73866},"202602":{"exp":157193,"inc":339129},"202603":{"exp":219499,"inc":331932},"202604":{"exp":183245,"inc":219048},"202605":{"exp":239857,"inc":208651},"202606":{"exp":74258,"inc":215056},"202607":{"exp":376826,"inc":230795}},"annual":{"2015":{"exp":114242,"inc":104343},"2016":{"exp":992955,"inc":1393757},"2017":{"exp":12223190,"inc":1849482},"2018":{"exp":2050868,"inc":1952561},"2019":{"exp":1302327,"inc":2221339},"2020":{"exp":1287077,"inc":2538099},"2021":{"exp":1454614,"inc":3557043},"2022":{"exp":2117613,"inc":4398698},"2023":{"exp":2288580,"inc":4060053},"2024":{"exp":2998766,"inc":4681402},"2025":{"exp":2610316,"inc":3705774},"2026":{"exp":1792224,"inc":1632146}},"yoy":{"curYear":"2026","prevYear":"2025","endMD":"0720","curExp":1792224,"prevExp":1858497,"curInc":1632146,"prevInc":1761318},"fixedSubs":["學雜費","保險費","管理費","訂閱服務","阿波生活費","照顧津貼"],"fixedMonths":["202408","202409","202410","202411","202412","202501","202502","202503","202504","202505","202506","202507","202508","202509","202510","202511","202512","202601","202602","202603","202604","202605","202606","202607"],"fixedSeries":{"學雜費":[0,0,0,0,156300,0,0,0,0,0,158000,168000,0,0,10625,0,0,322900,0,47131,2100,1200,2800,330600],"保險費":[87535,2388,0,0,0,3305,24961,6034,33386,92596,25059,12633,87892,0,0,0,0,0,24600,0,31310,42043,0,0],"管理費":[2392,2392,2392,2392,1892,2392,2392,2392,2392,2392,2392,2392,2392,2392,2392,2392,2392,2392,2392,0,4784,0,0,7200],"訂閱服務":[1729,2602,5028,8431,2543,1432,17419,3070,2451,2961,4922,2810,3346,5691,7395,5436,6399,2128,2392,2825,3884,10495,2521,3178],"阿波生活費":[20200,5619,0,10000,0,0,0,0,0,2000,0,0,0,0,0,10000,0,0,4675,0,4000,0,0,0],"照顧津貼":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"fixedPct":[38.3,4.2,2.7,17.5,42.8,4.8,22.1,5.7,15.6,33.5,37.5,64.9,42.4,9.5,12.3,17.0,6.3,67.9,18.2,22.1,25.1,21.2,6.6,89.9],"subTable":[{"y25":20565,"y26":8602,"name":"Google Play"},{"y25":2796,"y26":2330,"name":"Netflix"},{"y25":2204,"y26":2640,"name":"Google One"},{"y25":2175,"y26":2239,"name":"google workspace"},{"y25":3990,"y26":0,"name":"Notion plus"},{"y25":3727,"y26":0,"name":"Notion年費"},{"y25":3389,"y26":0,"name":"NordVPN"},{"y25":3259,"y26":0,"name":"google domains"},{"y25":2995,"y26":0,"name":"Midjourney"},{"y25":2725,"y26":0,"name":"ChatGPT Plus"}],"sub2025Total":63329,"sub2026Total":27425,"peaks":[{"m":"202412","exp":375128,"top":[{"sub":"學雜費","amt":156300},{"sub":"紅包","amt":40000},{"sub":"旅行遊玩","amt":23800}]},{"m":"202506","exp":508050,"top":[{"sub":"學雜費","amt":158000},{"sub":"稅金","amt":156010},{"sub":"保險費","amt":25059}]},{"m":"202601","exp":482031,"top":[{"sub":"學雜費","amt":322900},{"sub":"紅包","amt":52000},{"sub":"午餐","amt":13791}]},{"m":"202607","exp":379431,"top":[{"sub":"學雜費","amt":330600},{"sub":"午餐","amt":11099},{"sub":"蝦皮分成","amt":8606}]}],"peakThreshold":339720,"peakMean":229670,"peakSd":110050,"incGroups":["公司薪資","紅利","禮金","阿波薪資","蝦皮","收取還款","投資收入","其他"],"incDonut":{"公司薪資":8523641,"紅利":4453296,"禮金":894409,"阿波薪資":1486500,"蝦皮":1154879,"收取還款":451969,"投資收入":516233,"其他":997147},"incYears":["2022","2023","2024","2025","2026"],"incStack":{"2022":{"公司薪資":3020345,"紅利":0,"禮金":567800,"阿波薪資":470000,"蝦皮":74096,"收取還款":88785,"投資收入":42269,"其他":135402},"2023":{"公司薪資":947036,"紅利":1966334,"禮金":280916,"阿波薪資":270000,"蝦皮":152291,"收取還款":19464,"投資收入":274329,"其他":149683},"2024":{"公司薪資":1217528,"紅利":2486962,"禮金":35093,"阿波薪資":233500,"蝦皮":338531,"收取還款":194803,"投資收入":78760,"其他":96224},"2025":{"公司薪資":2210808,"紅利":0,"禮金":0,"阿波薪資":324000,"蝦皮":418046,"收取還款":79006,"投資收入":97014,"其他":576900},"2026":{"公司薪資":1127924,"紅利":0,"禮金":10600,"阿波薪資":189000,"蝦皮":171915,"收取還款":69911,"投資收入":23859,"其他":38937}},"investDetail":[{"sub":"股票","amt":464960},{"sub":"保險","amt":307684},{"sub":"其他","amt":99666},{"sub":"利息","amt":90500},{"sub":"基金","amt":59121},{"sub":"債券","amt":25628},{"sub":"賭博","amt":14196},{"sub":"彩券","amt":10400}],"projTable":[{"name":"林口買房修繕","from":"20171029","to":"20190323","amt":11786893,"n":44},{"name":"育兒","from":"20201011","to":"20260706","amt":2349728,"n":158},{"name":"製造若熙","from":"20191202","to":"20200828","amt":358843,"n":66},{"name":"2025關西孝親7日","from":"20240826","to":"20250407","amt":325408,"n":67},{"name":"婚禮","from":"20160521","to":"20161104","amt":231105,"n":14},{"name":"2017關西蜜月旅行","from":"20161114","to":"20170125","amt":107340,"n":46},{"name":"2019東京","from":"20190314","to":"20190720","amt":99886,"n":34},{"name":"奧創","from":"20160529","to":"20180615","amt":94064,"n":12},{"name":"2026 MSC榮耀號沖繩","from":"20260518","to":"20260518","amt":80000,"n":1},{"name":"2020跨年東京","from":"20190728","to":"20200105","amt":77067,"n":68},{"name":"2024LasVegas出差","from":"20240913","to":"20241013","amt":65613,"n":36},{"name":"藍玥資訊","from":"20230724","to":"20240531","amt":60274,"n":17},{"name":"2025菲律賓+ICE出差","from":"20241225","to":"20250124","amt":60118,"n":26},{"name":"2016東京電玩展旅遊","from":"20160322","to":"20160918","amt":46514,"n":57},{"name":"2017港澳旅行","from":"20170528","to":"20170904","amt":33787,"n":7},{"name":"202602宿霧出差","from":"20260207","to":"20260306","amt":32213,"n":17},{"name":"2018釜山之旅","from":"20180115","to":"20180724","amt":31674,"n":62},{"name":"2025高中同學台南之旅","from":"20250615","to":"20250629","amt":17011,"n":24},{"name":"2019上海出差","from":"20190710","to":"20190804","amt":14648,"n":13},{"name":"2025端午台中之旅","from":"20250525","to":"20250531","amt":13833,"n":10},{"name":"2017澳門出差","from":"20170516","to":"20170519","amt":13460,"n":18},{"name":"2019澳門出差","from":"20190419","to":"20190523","amt":5833,"n":11}],"babyByYear":[{"y":"2020","amt":35691},{"y":"2021","amt":347972},{"y":"2022","amt":446581},{"y":"2023","amt":182808},{"y":"2024","amt":317222},{"y":"2025","amt":284813},{"y":"2026","amt":734641}],"baby2026Top":[{"sub":"學雜費","amt":703331},{"sub":"保險費","amt":31310}],"trips":[{"name":"2025關西孝親7日","from":"20240826","to":"20250407","amt":325408,"n":67},{"name":"2017關西蜜月旅行","from":"20161114","to":"20170125","amt":107340,"n":46},{"name":"2019東京","from":"20190314","to":"20190720","amt":99886,"n":34},{"name":"2026 MSC榮耀號沖繩","from":"20260518","to":"20260518","amt":80000,"n":1},{"name":"2020跨年東京","from":"20190728","to":"20200105","amt":77067,"n":68},{"name":"2024LasVegas出差","from":"20240913","to":"20241013","amt":65613,"n":36},{"name":"2025菲律賓+ICE出差","from":"20241225","to":"20250124","amt":60118,"n":26},{"name":"2016東京電玩展旅遊","from":"20160322","to":"20160918","amt":46514,"n":57},{"name":"2017港澳旅行","from":"20170528","to":"20170904","amt":33787,"n":7},{"name":"202602宿霧出差","from":"20260207","to":"20260306","amt":32213,"n":17},{"name":"2018釜山之旅","from":"20180115","to":"20180724","amt":31674,"n":62},{"name":"2025高中同學台南之旅","from":"20250615","to":"20250629","amt":17011,"n":24}],"house":{"name":"林口買房修繕","from":"20171029","to":"20190323","amt":11786893,"n":44},"catDonut":{"理財投資":1859780,"居家生活":1700757,"教育學習":1585932,"其他":1566988,"餐飲食品":1326025,"休閒娛樂":942733,"人情交際":735705,"費用":684556,"3C通訊":438913,"汽機車":298369,"服飾美容":228781,"醫療保健":216836,"運輸交通":196552,"圖書刊物":25573},"stackCats":["理財投資","教育學習","居家生活","餐飲食品","人情交際","休閒娛樂","其他"],"stackData":{"2022":{"理財投資":403286,"教育學習":63842,"居家生活":317545,"餐飲食品":177426,"人情交際":310233,"休閒娛樂":45907,"其他":379319},"2023":{"理財投資":522039,"教育學習":66583,"居家生活":359061,"餐飲食品":252089,"人情交際":139732,"休閒娛樂":188424,"其他":261972},"2024":{"理財投資":409292,"教育學習":297908,"居家生活":447022,"餐飲食品":262809,"人情交際":171910,"休閒娛樂":274569,"其他":440594},"2025":{"理財投資":373431,"教育學習":411347,"居家生活":427135,"餐飲食品":421853,"人情交際":11237,"休閒娛樂":259321,"其他":367387}},"subcatTop":[{"cat":"理財投資","sub":"保險費","amt":1495214},{"cat":"教育學習","sub":"學雜費","amt":1276456},{"cat":"其他","sub":"進貨","amt":728696},{"cat":"居家生活","sub":"稅金","amt":673859},{"cat":"休閒娛樂","sub":"旅行遊玩","amt":431926},{"cat":"居家生活","sub":"日用品","amt":414731},{"cat":"餐飲食品","sub":"午餐","amt":409174},{"cat":"餐飲食品","sub":"晚餐","amt":406876},{"cat":"費用","sub":"阿波生活費","amt":331329},{"cat":"其他","sub":"電子錢包儲值","amt":318732},{"cat":"休閒娛樂","sub":"運動健身","amt":299173},{"cat":"人情交際","sub":"孝養父母","amt":294560},{"cat":"人情交際","sub":"紅包","amt":268200},{"cat":"其他","sub":"爛賬堆積","amt":225056},{"cat":"3C通訊","sub":"電子周邊","amt":214931}],"milu":{"fxRows":114,"fxExp":186352,"fxInc":1190,"fxBuy":167540,"fxBuyByYear":{"2021":7437,"2022":27015,"2023":14576,"2024":4867,"2025":102186,"2026":11460},"monthly":[{"m":"202112","inc":368,"exp":150,"orders":1},{"m":"202201","inc":1734,"exp":0,"orders":3},{"m":"202202","inc":234,"exp":0,"orders":1},{"m":"202203","inc":2169,"exp":1856,"orders":6},{"m":"202204","inc":3000,"exp":0,"orders":5},{"m":"202205","inc":5495,"exp":721,"orders":10},{"m":"202206","inc":2599,"exp":1166,"orders":8},{"m":"202207","inc":6830,"exp":900,"orders":13},{"m":"202208","inc":2535,"exp":1114,"orders":6},{"m":"202209","inc":11829,"exp":5527,"orders":19},{"m":"202210","inc":10700,"exp":5730,"orders":15},{"m":"202211","inc":13322,"exp":14746,"orders":17},{"m":"202212","inc":13649,"exp":16795,"orders":22},{"m":"202301","inc":8085,"exp":1482,"orders":14},{"m":"202302","inc":12435,"exp":8716,"orders":20},{"m":"202303","inc":12493,"exp":16486,"orders":20},{"m":"202304","inc":8120,"exp":6559,"orders":16},{"m":"202305","inc":14117,"exp":2901,"orders":22},{"m":"202306","inc":10862,"exp":9655,"orders":18},{"m":"202307","inc":9146,"exp":3380,"orders":18},{"m":"202308","inc":14240,"exp":30837,"orders":21},{"m":"202309","inc":12560,"exp":8473,"orders":21},{"m":"202310","inc":14343,"exp":10030,"orders":18},{"m":"202311","inc":16323,"exp":26395,"orders":20},{"m":"202312","inc":19567,"exp":29055,"orders":21},{"m":"202401","inc":32588,"exp":19507,"orders":24},{"m":"202402","inc":30691,"exp":22959,"orders":17},{"m":"202403","inc":22692,"exp":33864,"orders":22},{"m":"202404","inc":17835,"exp":21064,"orders":18},{"m":"202405","inc":17509,"exp":15535,"orders":22},{"m":"202406","inc":24537,"exp":26610,"orders":19},{"m":"202407","inc":33931,"exp":43216,"orders":21},{"m":"202408","inc":28728,"exp":30613,"orders":21},{"m":"202409","inc":33368,"exp":28276,"orders":21},{"m":"202410","inc":29484,"exp":36157,"orders":20},{"m":"202411","inc":28871,"exp":22407,"orders":20},{"m":"202412","inc":38297,"exp":28800,"orders":23},{"m":"202501","inc":35394,"exp":28966,"orders":17},{"m":"202502","inc":45245,"exp":22909,"orders":19},{"m":"202503","inc":42264,"exp":19917,"orders":21},{"m":"202504","inc":38294,"exp":8852,"orders":19},{"m":"202505","inc":37507,"exp":28378,"orders":20},{"m":"202506","inc":56188,"exp":24365,"orders":22},{"m":"202507","inc":31958,"exp":28180,"orders":22},{"m":"202508","inc":29352,"exp":29949,"orders":21},{"m":"202509","inc":27673,"exp":20212,"orders":21},{"m":"202510","inc":20735,"exp":12159,"orders":20},{"m":"202511","inc":27023,"exp":7647,"orders":20},{"m":"202512","inc":26413,"exp":14829,"orders":22},{"m":"202601","inc":23442,"exp":8538,"orders":22},{"m":"202602","inc":25067,"exp":9094,"orders":13},{"m":"202603","inc":35391,"exp":38497,"orders":22},{"m":"202604","inc":27803,"exp":24914,"orders":21},{"m":"202605","inc":21221,"exp":5589,"orders":20},{"m":"202606","inc":26508,"exp":13774,"orders":22},{"m":"202607","inc":12685,"exp":10095,"orders":13}],"annual":[{"y":"2021","inc":368,"exp":150},{"y":"2022","inc":74096,"exp":48555},{"y":"2023","inc":152291,"exp":153969},{"y":"2024","inc":338531,"exp":329008},{"y":"2025","inc":418046,"exp":246363},{"y":"2026","inc":172117,"exp":110501}],"cost":[{"item":"進貨","amt":568992},{"item":"蝦皮分成","amt":159412},{"item":"郵寄費","amt":73203},{"item":"廣告投放","amt":33220},{"item":"雜支","amt":22334},{"item":"傢俱","amt":12000},{"item":"文具","amt":9976},{"item":"稅金","amt":7387},{"item":"電子周邊","amt":1814},{"item":"刷卡手續費","amt":417},{"item":"退費還款","amt":-209}],"chanDonut":{"1688阿里巴巴":384233,"淘寶":174296,"蝦皮":4573,"其他":5890},"chanStack":{"2022":{"1688阿里巴巴":0,"淘寶":25191,"蝦皮":0,"其他":3777},"2023":{"1688阿里巴巴":7280,"淘寶":96899,"蝦皮":0,"其他":1611},"2024":{"1688阿里巴巴":173181,"淘寶":46604,"蝦皮":1030,"其他":0},"2025":{"1688阿里巴巴":142772,"淘寶":3375,"蝦皮":3543,"其他":502},"2026":{"1688阿里巴巴":61000,"淘寶":2227,"蝦皮":0,"其他":0}},"channels":["1688阿里巴巴","淘寶","蝦皮","其他"],"risk":[{"m":"202211","ratio":29.4},{"m":"202212","ratio":39.1},{"m":"202301","ratio":36.0},{"m":"202302","ratio":39.0},{"m":"202303","ratio":44.8},{"m":"202304","ratio":45.5},{"m":"202305","ratio":42.1},{"m":"202306","ratio":46.1},{"m":"202307","ratio":46.3},{"m":"202308","ratio":59.3},{"m":"202309","ratio":62.1},{"m":"202310","ratio":63.4},{"m":"202311","ratio":66.1},{"m":"202312","ratio":69.5},{"m":"202401","ratio":66.0},{"m":"202402","ratio":63.5},{"m":"202403","ratio":63.9},{"m":"202404","ratio":66.1},{"m":"202405","ratio":69.6},{"m":"202406","ratio":70.4},{"m":"202407","ratio":74.4},{"m":"202408","ratio":68.1},{"m":"202409","ratio":67.9},{"m":"202410","ratio":73.1},{"m":"202411","ratio":68.4},{"m":"202412","ratio":65.2},{"m":"202501","ratio":68.0},{"m":"202502","ratio":65.2},{"m":"202503","ratio":60.2},{"m":"202504","ratio":54.0},{"m":"202505","ratio":53.7},{"m":"202506","ratio":48.6},{"m":"202507","ratio":45.9},{"m":"202508","ratio":44.3},{"m":"202509","ratio":43.4},{"m":"202510","ratio":39.0},{"m":"202511","ratio":37.2},{"m":"202512","ratio":35.9},{"m":"202601","ratio":32.6},{"m":"202602","ratio":32.5},{"m":"202603","ratio":35.5},{"m":"202604","ratio":40.8},{"m":"202605","ratio":37.1},{"m":"202606","ratio":39.5},{"m":"202607","ratio":37.2}],"riskWarn":69.5,"riskOk":35.9,"yoy":{"2024":[32588,30691,22692,17835,17509,24537,33931,28728,33368,29484,28871,38297],"2025":[35394,45245,42264,38294,37507,56188,31958,29352,27673,20735,27023,26413],"2026":[23442,25067,35391,27803,21221,26508,12685,0,0,0,0,0]},"h1cur":159432,"h1prev":254892},"incAllTime":{"公司薪資":12817943,"禮金":6317588,"紅利":4453296,"阿波薪資":3698528,"收取還款":1208231,"蝦皮":1163650,"投資收入":1072155}};
+
+const fmt = n => Math.abs(n) >= 10000 ? (n/10000).toFixed(1)+'萬' : Math.round(n).toLocaleString();
+const fmtFull = n => Math.round(n).toLocaleString();
+const pct = n => (n>=0?'+':'') + n.toFixed(1) + '%';
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#1e2533';
+Chart.defaults.font.family = "-apple-system,'PingFang TC',sans-serif";
+
+const monthly = D.monthly;
+const MONTH_KEYS = Object.keys(monthly).sort();
+const ymLabel = k => k.slice(0,4)+'/'+k.slice(4,6);
+
+// ---- KPI ----
+const last12 = MONTH_KEYS.slice(-12);
+const exp12 = last12.reduce((s,k)=>s+monthly[k].exp,0);
+const inc12 = last12.reduce((s,k)=>s+monthly[k].inc,0);
+document.getElementById('kpi-exp12').textContent = fmt(exp12);
+document.getElementById('kpi-inc12').textContent = fmt(inc12);
+document.getElementById('kpi-sur12').textContent = (inc12-exp12>=0?'+':'')+fmt(inc12-exp12);
+document.getElementById('kpi-avg12').textContent = fmt(exp12/12);
+const rangeTxt = ymLabel(last12[0])+' – '+ymLabel(last12[11]);
+document.getElementById('kpi-range').textContent = rangeTxt;
+document.getElementById('kpi-range2').textContent = rangeTxt;
+
+// YoY 同期
+const Y = D.yoy;
+const dExp = Y.curExp - Y.prevExp, pExp = Y.prevExp ? dExp/Y.prevExp*100 : 0;
+const dInc = Y.curInc - Y.prevInc, pInc = Y.prevInc ? dInc/Y.prevInc*100 : 0;
+const mdTxt = Y.endMD.slice(0,2)+'/'+Y.endMD.slice(2,4);
+document.getElementById('kpi-yoy').innerHTML =
+  `<span style="color:#f0c060">${fmt(Y.curExp)}</span>`;
+document.getElementById('kpi-yoy-sub').innerHTML =
+  `${Y.curYear}/01/01–${Y.curYear}/${mdTxt} vs 去年同期<br>` +
+  `支出 <span class="${dExp>=0?'up':'down'}">${dExp>=0?'+':'−'}${fmtFull(Math.abs(dExp))}（${pct(pExp)}）</span><br>` +
+  `收入 <span class="${dInc>=0?'down':'up'}">${dInc>=0?'+':'−'}${fmtFull(Math.abs(dInc))}（${pct(pInc)}）</span>`;
+
+// ---- 月度收支 ----
+const mLabels = MONTH_KEYS.map(ymLabel);
+new Chart(document.getElementById('monthlyChart'),{
+  type:'bar',
+  data:{labels:mLabels,datasets:[
+    {label:'收入',data:MONTH_KEYS.map(k=>monthly[k].inc),backgroundColor:'rgba(74,222,128,0.6)',order:2},
+    {label:'支出',data:MONTH_KEYS.map(k=>monthly[k].exp),backgroundColor:'rgba(248,113,113,0.6)',order:3},
+    {label:'結餘',data:MONTH_KEYS.map(k=>monthly[k].inc-monthly[k].exp),
+      type:'line',borderColor:'#60a5fa',backgroundColor:'transparent',pointRadius:3,borderWidth:2,order:1,tension:0.3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:12,font:{size:11}}},
+      y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}}}}
+});
+
+// ---- 滾動均線 ----
+const r24keys = MONTH_KEYS.slice(-24);
+const rolling = r24keys.map((k,i)=>{const w=[r24keys[i-2],r24keys[i-1],k].filter(Boolean);return w.reduce((s,kk)=>s+monthly[kk].exp,0)/w.length;});
+new Chart(document.getElementById('rollingChart'),{
+  type:'line',
+  data:{labels:r24keys.map(ymLabel),datasets:[
+    {label:'月支出',data:r24keys.map(k=>monthly[k].exp),borderColor:'rgba(248,113,113,0.5)',backgroundColor:'rgba(248,113,113,0.05)',fill:true,tension:0.3,pointRadius:2},
+    {label:'3月均線',data:rolling,borderColor:'#f0c060',borderWidth:2,pointRadius:0,tension:0.4}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{maxTicksLimit:8,font:{size:10}}},
+      y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}}}}
+});
+
+// ---- 本年月收支 ----
+const CURY = D.yoy.curYear;
+const yCur = MONTH_KEYS.filter(k=>k.startsWith(CURY));
+new Chart(document.getElementById('y2026Chart'),{
+  type:'bar',
+  data:{labels:yCur.map(k=>k.slice(4,6)+'月'),datasets:[
+    {label:'支出',data:yCur.map(k=>monthly[k].exp),backgroundColor:'rgba(248,113,113,0.7)',borderRadius:4},
+    {label:'收入',data:yCur.map(k=>monthly[k].inc),backgroundColor:'rgba(74,222,128,0.5)',borderRadius:4}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'}},y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}}}}
+});
+
+// ---- 高峰月份 ----
+document.getElementById('pk-mean').textContent = fmtFull(D.peakMean);
+document.getElementById('pk-sd').textContent = fmtFull(D.peakSd);
+document.getElementById('pk-th').textContent = fmtFull(D.peakThreshold);
+document.getElementById('peakTable').innerHTML = D.peaks.length ? D.peaks.map(p=>{
+  const cells = [0,1,2].map(i=>p.top[i]
+    ? `<td>${p.top[i].sub} <span class="muted">${fmtFull(p.top[i].amt)}</span></td>` : '<td class="muted">—</td>').join('');
+  return `<tr><td><strong>${ymLabel(p.m)}</strong></td><td class="amt expense">${fmtFull(p.exp)}</td>${cells}</tr>`;
+}).join('') : '<tr><td colspan="5" class="muted">近24個月內無高峰月份</td></tr>';
+
+// ---- 固定支出 ----
+const fixedColors = ['#f0c060','#60a5fa','#4ade80','#a78bfa','#fb923c','#e879f9'];
+new Chart(document.getElementById('fixedChart'),{
+  type:'bar',
+  data:{labels:D.fixedMonths.map(ymLabel),datasets:[
+    ...D.fixedSubs.map((s,i)=>({label:s,data:D.fixedSeries[s],backgroundColor:fixedColors[i],borderWidth:0,stack:'f',order:2,yAxisID:'y'})),
+    {label:'佔當月總支出%',data:D.fixedPct,type:'line',borderColor:'#f87171',backgroundColor:'transparent',
+      borderWidth:2,pointRadius:2,tension:0.3,order:1,yAxisID:'y1'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11},boxWidth:10,padding:6}},
+      tooltip:{callbacks:{label:ctx=>ctx.dataset.yAxisID==='y1'
+        ? ` ${ctx.dataset.label}: ${ctx.raw}%` : ` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{stacked:true,grid:{color:'#1e2533'},ticks:{maxTicksLimit:12,font:{size:10}}},
+      y:{stacked:true,grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}},
+      y1:{position:'right',grid:{drawOnChartArea:false},min:0,ticks:{callback:v=>v+'%'}}}}
+});
+
+// ---- 訂閱服務 ----
+const sub25max = Math.max(...D.subTable.map(d=>d.y25), 1);
+document.getElementById('subTable').innerHTML = D.subTable.map(d=>`
+  <tr><td>${d.name || '(未填商家)'}</td>
+  <td class="amt expense">${fmtFull(d.y25)}</td>
+  <td class="amt">${d.y26 ? fmtFull(d.y26) : '<span class="muted">—</span>'}</td>
+  <td><div class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${(d.y25/sub25max*100).toFixed(1)}%;background:#f0c060"></div></div>
+  <span class="muted">${D.sub2025Total?(d.y25/D.sub2025Total*100).toFixed(0):0}%</span></div></td></tr>`).join('');
+document.getElementById('sub25tot').textContent = fmtFull(D.sub2025Total);
+document.getElementById('sub26tot').textContent = fmtFull(D.sub2026Total);
+
+// ---- 年度 ----
+const annualKeys = Object.keys(D.annual).filter(y=>y>='2018').sort();
+new Chart(document.getElementById('annualChart'),{
+  type:'bar',
+  data:{labels:annualKeys,datasets:[
+    {label:'收入',data:annualKeys.map(k=>D.annual[k].inc),backgroundColor:'rgba(74,222,128,0.7)',borderRadius:4},
+    {label:'支出',data:annualKeys.map(k=>D.annual[k].exp),backgroundColor:'rgba(248,113,113,0.7)',borderRadius:4}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'}},y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}}}}
+});
+document.getElementById('annualTable').innerHTML = Object.keys(D.annual).sort().reverse().map(y=>{
+  const d=D.annual[y], sur=d.inc-d.exp;
+  const tag = y==='2017' ? ' <span class="muted">(含房貸)</span>' : (y===CURY ? ' <span class="muted">(至 '+D.lastDate.slice(4,6)+'/'+D.lastDate.slice(6,8)+')</span>' : '');
+  return `<tr><td>${y}${tag}</td><td class="amt income">${fmtFull(d.inc)}</td><td class="amt expense">${fmtFull(d.exp)}</td><td class="amt surplus">${sur>=0?'+':''}${fmtFull(sur)}</td></tr>`;
+}).join('');
+
+// ---- 分類 ----
+const catColors=['#f0c060','#60a5fa','#4ade80','#f87171','#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8','#a3e635','#fbbf24','#818cf8','#f472b6','#94a3b8'];
+const catKeys=Object.keys(D.catDonut).sort((a,b)=>D.catDonut[b]-D.catDonut[a]);
+const catTotal=catKeys.reduce((s,k)=>s+D.catDonut[k],0);
+new Chart(document.getElementById('catPieChart'),{
+  type:'doughnut',
+  data:{labels:catKeys,datasets:[{data:catKeys.map(k=>D.catDonut[k]),backgroundColor:catColors,borderWidth:1,borderColor:'#0f1117'}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12,padding:8}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmtFull(ctx.raw)} (${(ctx.raw/catTotal*100).toFixed(1)}%)`}}}}
+});
+const stackYears = Object.keys(D.stackData).sort();
+new Chart(document.getElementById('catStackChart'),{
+  type:'bar',
+  data:{labels:stackYears,
+    datasets:D.stackCats.map((c,i)=>({label:c,data:stackYears.map(y=>D.stackData[y][c]||0),backgroundColor:catColors[i],borderWidth:0}))
+  },
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11},boxWidth:10,padding:6}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{stacked:true,grid:{color:'#1e2533'}},y:{stacked:true,grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}}}}
+});
+const maxAmt=D.subcatTop[0].amt;
+document.getElementById('subcatTable').innerHTML=D.subcatTop.map(d=>`
+  <tr><td><span class="muted">${d.cat} › </span>${d.sub}</td>
+  <td class="amt expense">${fmtFull(d.amt)}</td>
+  <td><div class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${(d.amt/maxAmt*100).toFixed(1)}%;background:#f87171"></div></div>
+  <span class="muted">${(d.amt/maxAmt*100).toFixed(0)}%</span></div></td></tr>`).join('');
+
+// ---- 收入分析 ----
+const incColors={'公司薪資':'#f0c060','紅利':'#fbbf24','禮金':'#e879f9','阿波薪資':'#60a5fa',
+  '蝦皮':'#c084fc','收取還款':'#38bdf8','投資收入':'#4ade80','其他':'#94a3b8'};
+const incKeys = D.incGroups.slice().sort((a,b)=>D.incDonut[b]-D.incDonut[a]);
+const incTotal = incKeys.reduce((s,k)=>s+D.incDonut[k],0);
+new Chart(document.getElementById('incDonut'),{
+  type:'doughnut',
+  data:{labels:incKeys,datasets:[{data:incKeys.map(k=>D.incDonut[k]),
+    backgroundColor:incKeys.map(k=>incColors[k]),borderWidth:1,borderColor:'#0f1117'}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12,padding:8}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmtFull(ctx.raw)} (${(ctx.raw/incTotal*100).toFixed(1)}%)`}}}}
+});
+new Chart(document.getElementById('incStack'),{
+  type:'bar',
+  data:{labels:D.incYears,datasets:D.incGroups.map(g=>({label:g,
+    data:D.incYears.map(y=>D.incStack[y][g]||0),backgroundColor:incColors[g],borderWidth:0}))},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11},boxWidth:10,padding:6}},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{stacked:true,grid:{color:'#1e2533'}},y:{stacked:true,grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}}}}
+});
+const invTotal = D.investDetail.reduce((s,d)=>s+d.amt,0);
+document.getElementById('investTable').innerHTML = D.investDetail.map(d=>`
+  <tr><td>${d.sub}</td><td class="amt income">${fmtFull(d.amt)}</td>
+  <td><div class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${(d.amt/D.investDetail[0].amt*100).toFixed(1)}%;background:#4ade80"></div></div>
+  <span class="muted">${(d.amt/invTotal*100).toFixed(0)}%</span></div></td></tr>`).join('')
+  + `<tr><td><strong>合計</strong></td><td class="amt income"><strong>${fmtFull(invTotal)}</strong></td><td></td></tr>`;
+document.getElementById('incAllTable').innerHTML = Object.entries(D.incAllTime)
+  .sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${k}</td><td class="amt income">${fmtFull(v)}</td></tr>`).join('');
+
+// ---- 專案分析 ----
+let cum=0;
+const babyCum = D.babyByYear.map(d=>cum+=d.amt);
+new Chart(document.getElementById('babyChart'),{
+  type:'bar',
+  data:{labels:D.babyByYear.map(d=>d.y),datasets:[
+    {label:'當年支出',data:D.babyByYear.map(d=>d.amt),backgroundColor:'rgba(240,192,96,0.75)',borderRadius:4,order:2,yAxisID:'y'},
+    {label:'累計',data:babyCum,type:'line',borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,0.08)',
+      fill:true,pointRadius:4,borderWidth:2,tension:0.3,order:1,yAxisID:'y1'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFull(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#1e2533'}},
+      y:{grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}},
+      y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>fmt(v)}}}}
+});
+(function(){
+  const b = D.babyByYear, last = b[b.length-1], prev = b[b.length-2];
+  const jump = prev ? ((last.amt-prev.amt)/prev.amt*100) : 0;
+  const tops = D.baby2026Top.map(d=>`<strong>${d.sub} ${fmtFull(d.amt)}</strong>`).join('、');
+  document.getElementById('babyInsight').innerHTML =
+    `💡 <strong>洞察</strong>：育兒專案累計 <strong>${fmtFull(babyCum[babyCum.length-1])}</strong>。` +
+    `${last.y} 年迄今已達 <strong>${fmtFull(last.amt)}</strong>，較 ${prev.y} 全年 ${pct(jump)}，是歷年最高且仍未過完整年度。` +
+    `主因為 ${tops} —— 學雜費單項就佔了 ${(D.baby2026Top[0].amt/last.amt*100).toFixed(0)}%，` +
+    `對應小孩進入學齡階段後的學費級距跳升，屬結構性、可預期的長期支出，建議納入年度預算固定編列。`;
+})();
+
+const trips = D.trips;
+new Chart(document.getElementById('tripChart'),{
+  type:'bar',
+  data:{labels:trips.map(d=>d.name),datasets:[
+    {label:'總花費',data:trips.map(d=>d.amt),backgroundColor:trips.map((d,i)=>catColors[i%catColors.length]),borderRadius:4}
+  ]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{
+      label:ctx=>` ${fmtFull(ctx.raw)}（${trips[ctx.dataIndex].n} 筆，${trips[ctx.dataIndex].from.slice(0,4)}/${trips[ctx.dataIndex].from.slice(4,6)}–${trips[ctx.dataIndex].to.slice(0,4)}/${trips[ctx.dataIndex].to.slice(4,6)}）`}}},
+    scales:{x:{grid:{color:'#1e2533'},ticks:{callback:v=>fmt(v)}},
+      y:{grid:{display:false},ticks:{font:{size:11}}}}}
+});
+const dfmt = d => d.slice(0,4)+'/'+d.slice(4,6);
+document.getElementById('projTable').innerHTML = D.projTable.map(d=>{
+  const flag = d.name===D.house.name ? ' <span class="muted">（一次性置產，未列入圖表）</span>' : '';
+  return `<tr><td>${d.name}${flag}</td><td class="muted">${dfmt(d.from)} – ${dfmt(d.to)}</td>
+    <td class="amt expense">${fmtFull(d.amt)}</td><td class="amt">${d.n}</td></tr>`;
+}).join('');
+document.getElementById('houseAmt').textContent = fmtFull(D.house.amt);
+
+// ---- footer ----
+document.getElementById('fxCount').textContent = D.fxCount.toLocaleString();
+document.getElementById('keptRows').textContent = D.keptRows.toLocaleString();
+
+function switchTab(id,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+</script>
+</body>
+</html>
