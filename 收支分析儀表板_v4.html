@@ -35,6 +35,11 @@ td.l{text-align:left}
 .foot{color:#6b7488;font-size:12px;line-height:1.8;margin-top:8px}
 .tag{display:inline-block;background:#242938;color:#9aa3b8;border-radius:4px;padding:1px 7px;font-size:11px;margin-left:6px}
 .warn{color:#ffb454}
+.seg{display:inline-flex;gap:0;border:1px solid #242938;border-radius:8px;overflow:hidden;margin-left:10px;vertical-align:middle}
+.seg button{background:#171a23;border:0;color:#8b93a7;font:inherit;font-size:12px;padding:4px 12px;cursor:pointer}
+.seg button+button{border-left:1px solid #242938}
+.seg button.on{background:#f0c060;color:#12131a;font-weight:600}
+.card h2 .seg{font-weight:400}
 .ok{color:#4ec9a4}
 .tblwrap{max-height:520px;overflow:auto}
 </style></head><body><div class="wrap">
@@ -95,8 +100,12 @@ td.l{text-align:left}
 <div class="card"><h2>各分類年度變化（2022–2025）</h2>
 <div class="desc">完整年度的分類支出堆疊比較；2026 為部分年度故不納入。</div>
 <div class="chartbox tall"><canvas id="c_catstack"></canvas></div></div>
-<div class="card"><h2>支出子分類 TOP 20（全期間）</h2>
-<table><thead><tr><th>子分類</th><th>累計金額</th><th style="width:34%">佔最大項比例</th></tr></thead>
+<div class="card"><h2>支出子分類 TOP 20<span id="subRange"></span>
+<span class="seg" id="subSeg">
+  <button data-r="all" class="on">全期間</button><button data-r="12">近 12 個月</button>
+</span></h2>
+<div class="desc" id="subDesc"></div>
+<table><thead><tr><th>子分類</th><th id="subAmtTh">累計金額</th><th style="width:34%">佔最大項比例</th></tr></thead>
 <tbody id="tSub"></tbody></table>
 <div class="foot warn" id="lzFoot"></div></div>
 </div>
@@ -304,13 +313,32 @@ document.getElementById('tYear').innerHTML=YEARS.map(y=>{
 // 支出子分類 TOP20
 const catAll={};
 for(const y in A.catY)for(const c in A.catY[y])bump(catAll,c,A.catY[y][c]);
-const subTop=Object.entries(A.subAll).sort((a,b)=>b[1]-a[1]).slice(0,20);
-const smax=subTop[0][1];
-document.getElementById('tSub').innerHTML=subTop.map(([s,v])=>
- `<tr><td>${s}</td><td>${nf(v)}</td><td><div style="background:#242938;border-radius:3px;height:8px"><div style="width:${(v/smax*100).toFixed(1)}%;background:#ff7b72;height:8px;border-radius:3px"></div></div></td></tr>`).join('');
-const lz=A.subAll['爛賬堆積']||0;
-document.getElementById('lzFoot').textContent=
- `子分類「爛賬堆積」＝資產增減原因不明時的歸戶；規則為負值（資產減少）併入個人支出，累計 ${nf(lz)} 元。`;
+// 近 12 個月：由 A.msub（近 24 月逐月子分類，已含外幣）取後 12 個月加總
+const M12=D.last24.slice(-12);
+const sub12={};
+M12.forEach(k=>{for(const s in A.msub[k])bump(sub12,s,A.msub[k][s]);});
+const SUBSET={all:{data:A.subAll,label:'全期間',amt:'累計金額',
+   desc:`${lbl(MK[0])} – ${fdate(M.lastDate)} 全期間累計。`},
+  '12':{data:sub12,label:`近 12 個月`,amt:'近 12 月金額',
+   desc:`${lbl(M12[0])} – ${lbl(M12[11])} 共 12 個月累計；${lbl(CM)} 為部分月份。用來看最近的支出結構，與全期間對照可看出哪些項目是近期才變重的。`}};
+function renderSub(r){
+  const S0=SUBSET[r], rows=Object.entries(S0.data).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,20);
+  const mx=rows.length?rows[0][1]:1;
+  document.getElementById('subRange').textContent='（'+S0.label+'）';
+  document.getElementById('subAmtTh').textContent=S0.amt;
+  document.getElementById('subDesc').textContent=S0.desc;
+  document.getElementById('tSub').innerHTML=rows.map(([s,v])=>
+   `<tr><td>${s}</td><td>${nf(v)}</td><td><div style="background:#242938;border-radius:3px;height:8px"><div style="width:${(v/mx*100).toFixed(1)}%;background:#ff7b72;height:8px;border-radius:3px"></div></div></td></tr>`).join('');
+  const lz=S0.data['爛賬堆積']||0;
+  document.getElementById('lzFoot').textContent=
+   `子分類「爛賬堆積」＝資產增減原因不明時的歸戶；規則為負值（資產減少）併入個人支出，${S0.label} ${nf(lz)} 元。`;
+}
+document.getElementById('subSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#subSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); renderSub(b.dataset.r);
+});
+renderSub('all');
 
 // 收入來源 / 投資收入
 const incAll={};
