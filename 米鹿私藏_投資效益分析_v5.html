@@ -247,7 +247,7 @@
       <h3>支出子分類明細（TWD 累積）</h3>
       <div class="table-scroll">
       <table>
-        <thead><tr><th>項目</th><th class="amt">金額</th><th>佔支出比</th></tr></thead>
+        <thead><tr><th>項目</th><th class="amt">金額</th><th>佔總支出</th></tr></thead>
         <tbody id="costTable"></tbody>
       </table>
       </div>
@@ -437,14 +437,14 @@
     <div class="card">
       <div class="table-scroll">
       <table>
-        <thead><tr><th>#</th><th>商品</th><th class="amt">銷售額</th><th>佔比</th><th class="amt">件數</th><th class="amt">毛利</th><th class="amt">毛利率</th><th>對應</th></tr></thead>
+        <thead><tr><th>#</th><th>商品</th><th class="amt">銷售額</th><th>佔全店營收</th><th class="amt">件數</th><th class="amt">毛利</th><th class="amt">毛利率</th><th>對應</th></tr></thead>
         <tbody id="topTable"></tbody>
       </table>
       </div>
       <p class="note">* <span class="tier-badge tier-exact">T1/T2 精算</span> = 該商品逾半銷售額能對上成本表 SKU，用實際單件淨利計算<br>
       * <span class="tier-badge tier-est">T3 估算</span> = 對不上成本表，用該類別的成本表毛利率中位數推估，<strong>僅供相對比較，不可當精確數字</strong><br>
       * ⚠️ <strong>「件數」欄在部分商品會虛胖</strong>：像「口袋精靈」這類<strong>客製／報價連結</strong>單價設為 $1，買家用「買 N 件」來湊金額，因此數量欄記的是金額而非實際件數。
-      全檔有 ${S.unit1Rows.toLocaleString()} 列屬此類（占 ${S.qtyUnit1.toLocaleString()} 件、$${fmt(S.amtUnit1)}）。<strong>銷售額與毛利不受影響，只有件數欄需要這樣讀</strong></p>
+      全檔有 <span id="u1rows"></span> 列屬此類（占 <span id="u1qty"></span> 件、$<span id="u1amt"></span>）。<strong>銷售額與毛利不受影響，只有件數欄需要這樣讀</strong></p>
     </div>
   </div>
 
@@ -674,9 +674,11 @@ document.getElementById('k-risk').innerHTML = `<span class="${riskCls}">${riskIc
 document.getElementById('k-risk-sub').textContent = riskTxt;
 
 const dH1 = M.h1cur - M.h1prev, pH1 = M.h1prev ? dH1/M.h1prev*100 : 0;
+// 期間標籤由資料算出，不要寫死月份（v4 寫死「1–7 月」，資料到 8 月後就錯了）
+const H1M = +M.lastM.slice(4,6), H1LAB = '1–'+H1M+' 月', H1NOTE = '（'+H1M+' 月為部分月份，資料至 2026/08/27）';
 document.getElementById('yoyAlert').innerHTML = dH1 < 0
-  ? `⚠️ <strong>營收警訊</strong>：${CURY} 年 1–7 月收入合計 <strong>$${fmt(M.h1cur)}</strong>，較 2025 年同期 $${fmt(M.h1prev)} <strong>${pct(pH1)}</strong>（少了 $${fmt(Math.abs(dH1))}）。<strong>v4 已診斷出原因</strong>：是「訂單量」下滑而非客單價 —— 詳見「👥 客群與衰退診斷」分頁。（8 月尚未結束，未納入判定）`
-  : `📈 ${CURY} 年 1–7 月收入合計 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 ${pct(pH1)}，表現優於去年。（8 月尚未結束，未納入判定）`;
+  ? `⚠️ <strong>營收警訊</strong>：${CURY} 年 ${H1LAB}收入合計 <strong>$${fmt(M.h1cur)}</strong>，較 2025 年同期 $${fmt(M.h1prev)} <strong>${pct(pH1)}</strong>（少了 $${fmt(Math.abs(dH1))}）。<strong>已診斷出原因</strong>：是「訂單量」下滑而非客單價 —— 詳見「👥 客群與衰退診斷」分頁。${H1NOTE}`
+  : `📈 ${CURY} 年 ${H1LAB}收入合計 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 ${pct(pH1)}，表現優於去年。${H1NOTE}`;
 
 const phaseLabel={start:'🌱 起步',scale:'🔥 擴張',profit:'💰 獲利'};
 const phaseCls={start:'phase-start',scale:'phase-scale',profit:'phase-profit'};
@@ -828,8 +830,8 @@ document.getElementById('costTable').innerHTML=cost.map((d,i)=>`
   <tr><td style="display:flex;align-items:center;gap:6px">
     <span style="width:8px;height:8px;background:${costColors[i%costColors.length]};border-radius:2px;flex-shrink:0;display:inline-block"></span>${d.item}</td>
   <td class="amt neg">$${fmt(d.amt)}</td>
-  <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${Math.max(0,(d.amt/cost[0].amt*100)).toFixed(1)}%;background:${costColors[i%costColors.length]}"></div></div>
-  <span style="font-size:0.75rem;color:#64748b;min-width:32px">${(d.amt/totalCost*100).toFixed(0)}%</span></div></td></tr>`).join('');
+  <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${Math.max(0,(d.amt/totalCost*100)).toFixed(1)}%;background:${costColors[i%costColors.length]}"></div></div>
+  <span style="font-size:0.75rem;color:#64748b;min-width:38px">${(d.amt/totalCost*100).toFixed(1)}%</span></div></td></tr>`).join('');
 new Chart(document.getElementById('costPie'),{
   type:'doughnut',
   data:{labels:cost.map(d=>d.item),datasets:[{data:cost.map(d=>Math.max(0,d.amt)),backgroundColor:costColors,borderWidth:1,borderColor:'#0d1117'}]},
@@ -850,8 +852,8 @@ new Chart(document.getElementById('costPie'),{
      body:`2022 利潤率 <strong>34%</strong> → 2023 幾乎打平（-1%）→ 2024 回升 <strong>3%</strong> → 2025 大幅提升至 <strong>${m25.toFixed(0)}%</strong>，${CURY} 迄今 <strong>${m26.toFixed(0)}%</strong>。2023 為快速擴張期，進貨量大造成短暫虧損；2025 起找到更好的商品結構與銷售節奏。`},
     {cls: dH1<0?'warn':'', icon: dH1<0?'⚠️':'📊', title: dH1<0?'營收動能轉弱（v4 已找出原因）':'營收動能持續',
      body: dH1<0
-       ? `${CURY} 年 1–7 月收入 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 <strong>${pct(pH1)}</strong>。<strong>v4 診斷</strong>：蝦皮訂單資料顯示客單價其實是<strong class="green">上升</strong>的（2023 約 $${fmt(S.annualAov['2023'])} → ${CURY} 約 $${fmt(S.annualAov['2026'])}），衰退全部來自<strong class="red">訂單量下滑</strong>。要救的是流量與曝光，不是定價。`
-       : `${CURY} 年 1–7 月收入 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 <strong>${pct(pH1)}</strong>，動能維持。`},
+       ? `${CURY} 年 ${H1LAB}收入 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 <strong>${pct(pH1)}</strong>。<strong>診斷</strong>：蝦皮訂單資料顯示客單價其實是<strong class="green">上升</strong>的（2023 約 $${fmt(S.annualAov['2023'])} → ${CURY} 約 $${fmt(S.annualAov['2026'])}），衰退全部來自<strong class="red">訂單量下滑</strong>。要救的是流量與曝光，不是定價。`
+       : `${CURY} 年 ${H1LAB}收入 <strong>$${fmt(M.h1cur)}</strong>，較 2025 同期 <strong>${pct(pH1)}</strong>，動能維持。`},
     {cls:'', icon:'🚚', title:'進貨集中於單一通路',
      body:`進貨成本佔總支出 <strong>${buyPct}%</strong>。通路以 <strong>${chanTop[0][0]}</strong>（$${fmt(chanTop[0][1])}，${(chanTop[0][1]/chanTotal*100).toFixed(0)}%）為主，其次 ${chanTop[1][0]}（$${fmt(chanTop[1][1])}）。2024 起明顯從淘寶轉向 1688，集中度上升有議價優勢但也提高單一供應鏈風險。`},
     {cls: curRisk.ratio>M.riskWarn?'warn':'', icon: curRisk.ratio>M.riskWarn?'⚠️':(curRisk.ratio<M.riskOk?'✅':'🟡'), title:'庫存風險落點',
@@ -883,6 +885,9 @@ new Chart(document.getElementById('costPie'),{
     `月份序列比 v4 多一個月（2021/11 有一筆外幣進貨）。`;
 })();
 
+document.getElementById('u1rows').textContent = S.unit1Rows.toLocaleString();
+document.getElementById('u1qty').textContent  = S.qtyUnit1.toLocaleString();
+document.getElementById('u1amt').textContent  = fmt(S.amtUnit1);
 document.getElementById('catRules').innerHTML =
   S.catRules.map(([c,k])=>`<strong>${c}</strong>：${k.join('／')}`).join('；');
 document.getElementById('fx-status').textContent =
@@ -1081,8 +1086,7 @@ builders.p4 = function(){
     <tr><td class="muted">${i+1}</td>
       <td style="max-width:340px;font-size:0.8rem">${p.name}</td>
       <td class="amt pos">$${fmt(p.rev)}</td>
-      <td style="min-width:110px"><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${(p.rev/T[0].rev*100).toFixed(1)}%;background:#c084fc"></div></div>
-        <span style="font-size:0.72rem;color:#64748b;min-width:34px">${(p.rev/tt*100).toFixed(1)}%</span></div></td>
+      <td class="amt" style="min-width:70px;color:#94a3b8">${(p.rev/tt*100).toFixed(1)}%</td>
       <td class="amt">${p.qty.toLocaleString()}</td>
       <td class="amt purple">$${fmt(p.gp)}</td>
       <td class="amt ${p.gm>=35?'pos':p.gm<25?'neg':''}">${p.gm}%</td>
