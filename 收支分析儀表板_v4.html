@@ -40,6 +40,10 @@ td.l{text-align:left}
 .seg button+button{border-left:1px solid #242938}
 .seg button.on{background:#f0c060;color:#12131a;font-weight:600}
 .card h2 .seg{font-weight:400}
+.barcell{display:flex;align-items:center;gap:10px}
+.bar{flex:1;background:#242938;border-radius:3px;height:8px;min-width:40px}
+.barfill{background:#ff7b72;height:8px;border-radius:3px}
+.barpct{color:#8b93a7;font-size:12px;min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
 .ok{color:#4ec9a4}
 .tblwrap{max-height:520px;overflow:auto}
 </style></head><body><div class="wrap">
@@ -327,8 +331,11 @@ function renderSub(r){
   document.getElementById('subRange').textContent='（'+S0.label+'）';
   document.getElementById('subAmtTh').textContent=S0.amt;
   document.getElementById('subDesc').textContent=S0.desc;
-  document.getElementById('tSub').innerHTML=rows.map(([s,v])=>
-   `<tr><td>${s}</td><td>${nf(v)}</td><td><div style="background:#242938;border-radius:3px;height:8px"><div style="width:${(v/mx*100).toFixed(1)}%;background:#ff7b72;height:8px;border-radius:3px"></div></div></td></tr>`).join('');
+  document.getElementById('tSub').innerHTML=rows.map(([s,v])=>{
+   const p=v/mx*100;
+   return `<tr><td>${s}</td><td>${nf(v)}</td><td><div class="barcell">`
+    +`<div class="bar"><div class="barfill" style="width:${p.toFixed(1)}%"></div></div>`
+    +`<span class="barpct">${p.toFixed(1)}%</span></div></td></tr>`;}).join('');
   const lz=S0.data['爛賬堆積']||0;
   document.getElementById('lzFoot').textContent=
    `子分類「爛賬堆積」＝資產增減原因不明時的歸戶；規則為負值（資產減少）併入個人支出，${S0.label} ${nf(lz)} 元。`;
