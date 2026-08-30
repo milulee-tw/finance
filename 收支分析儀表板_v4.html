@@ -109,7 +109,7 @@ td.l{text-align:left}
   <button data-r="all" class="on">全期間</button><button data-r="12">近 12 個月</button>
 </span></h2>
 <div class="desc" id="subDesc"></div>
-<table><thead><tr><th>子分類</th><th id="subAmtTh">累計金額</th><th style="width:34%">佔最大項比例</th></tr></thead>
+<table><thead><tr><th>子分類</th><th id="subAmtTh">累計金額</th><th style="width:34%" id="subPctTh">佔總支出</th></tr></thead>
 <tbody id="tSub"></tbody></table>
 <div class="foot warn" id="lzFoot"></div></div>
 </div>
@@ -321,24 +321,29 @@ for(const y in A.catY)for(const c in A.catY[y])bump(catAll,c,A.catY[y][c]);
 const M12=D.last24.slice(-12);
 const sub12={};
 M12.forEach(k=>{for(const s in A.msub[k])bump(sub12,s,A.msub[k][s]);});
-const SUBSET={all:{data:A.subAll,label:'全期間',amt:'累計金額',
-   desc:`${lbl(MK[0])} – ${fdate(M.lastDate)} 全期間累計。`},
-  '12':{data:sub12,label:`近 12 個月`,amt:'近 12 月金額',
-   desc:`${lbl(M12[0])} – ${lbl(M12[11])} 共 12 個月累計；${lbl(CM)} 為部分月份。用來看最近的支出結構，與全期間對照可看出哪些項目是近期才變重的。`}};
+// 分母＝該區間的「總支出」（由月度支出加總，與子分類加總一致）
+const TOT_ALL=MK.reduce((s,k)=>s+A.mR[k].exp,0);
+const TOT_12=M12.reduce((s,k)=>s+A.mR[k].exp,0);
+const SUBSET={all:{data:A.subAll,label:'全期間',amt:'累計金額',tot:TOT_ALL,
+   desc:`${lbl(MK[0])} – ${fdate(M.lastDate)} 全期間累計，總支出 ${nf(TOT_ALL)} 元。右欄為各子分類佔總支出的比例。`},
+  '12':{data:sub12,label:`近 12 個月`,amt:'近 12 月金額',tot:TOT_12,
+   desc:`${lbl(M12[0])} – ${lbl(M12[11])} 共 12 個月，總支出 ${nf(TOT_12)} 元（${lbl(CM)} 為部分月份）。與全期間對照可看出哪些項目是近期才變重的。`}};
 function renderSub(r){
   const S0=SUBSET[r], rows=Object.entries(S0.data).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,20);
-  const mx=rows.length?rows[0][1]:1;
+  const tot=S0.tot||1, shown=rows.reduce((a,b)=>a+b[1],0);
   document.getElementById('subRange').textContent='（'+S0.label+'）';
   document.getElementById('subAmtTh').textContent=S0.amt;
+  document.getElementById('subPctTh').textContent='佔總支出';
   document.getElementById('subDesc').textContent=S0.desc;
   document.getElementById('tSub').innerHTML=rows.map(([s,v])=>{
-   const p=v/mx*100;
+   const p=v/tot*100;
    return `<tr><td>${s}</td><td>${nf(v)}</td><td><div class="barcell">`
     +`<div class="bar"><div class="barfill" style="width:${p.toFixed(1)}%"></div></div>`
     +`<span class="barpct">${p.toFixed(1)}%</span></div></td></tr>`;}).join('');
   const lz=S0.data['爛賬堆積']||0;
-  document.getElementById('lzFoot').textContent=
-   `子分類「爛賬堆積」＝資產增減原因不明時的歸戶；規則為負值（資產減少）併入個人支出，${S0.label} ${nf(lz)} 元。`;
+  document.getElementById('lzFoot').innerHTML=
+   `TOP 20 合計 ${nf(shown)} 元，佔${S0.label}總支出 ${(shown/tot*100).toFixed(1)}%。<br>`
+   +`子分類「爛賬堆積」＝資產增減原因不明時的歸戶；規則為負值（資產減少）併入個人支出，${S0.label} ${nf(lz)} 元（佔 ${(lz/tot*100).toFixed(1)}%）。`;
 }
 document.getElementById('subSeg').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b)return;
